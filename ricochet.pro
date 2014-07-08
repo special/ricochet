@@ -99,8 +99,6 @@ win32 {
 }
 macx:LIBS += -lcrypto
 
-DEFINES += QT_NO_CAST_FROM_ASCII QT_NO_CAST_TO_ASCII
-
 SOURCES += src/main.cpp \
     src/ui/MainWindow.cpp \
     src/ui/ContactsModel.cpp \

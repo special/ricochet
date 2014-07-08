@@ -130,7 +130,6 @@ SOURCES += src/main.cpp \
     src/protocol/GetSecretCommand.cpp \
     src/core/UserIdentity.cpp \
     src/core/IdentityManager.cpp \
-    src/utils/AppSettings.cpp \
     src/ui/ConversationModel.cpp \
     src/tor/TorProcess.cpp \
     src/tor/TorManager.cpp \
@@ -153,7 +152,6 @@ HEADERS += src/ui/MainWindow.h \
     src/protocol/ProtocolCommand.h \
     src/protocol/PingCommand.h \
     src/protocol/IncomingSocket.h \
-    src/main.h \
     src/protocol/ChatMessageCommand.h \
     src/protocol/CommandHandler.h \
     src/protocol/CommandDataParser.h \
@@ -170,7 +168,6 @@ HEADERS += src/ui/MainWindow.h \
     src/protocol/GetSecretCommand.h \
     src/core/UserIdentity.h \
     src/core/IdentityManager.h \
-    src/utils/AppSettings.h \
     src/ui/ConversationModel.h \
     src/tor/TorProcess.h \
     src/tor/TorProcess_p.h \

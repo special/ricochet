@@ -85,7 +85,6 @@ SettingsFile::SettingsFile(QObject *parent)
 
 SettingsFile::~SettingsFile()
 {
-    delete d;
 }
 
 SettingsFilePrivate::SettingsFilePrivate(SettingsFile *qp)
@@ -277,12 +276,7 @@ bool SettingsFilePrivate::writeFile()
         return false;
     }
 
-    if (file.write(data) < data.size()) {
-        setError(file.errorString());
-        return false;
-    }
-
-    if (!file.commit()) {
+    if (file.write(data) < data.size() || !file.commit()) {
         setError(file.errorString());
         return false;
     }

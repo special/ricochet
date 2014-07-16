@@ -47,7 +47,9 @@ class SettingsObjectPrivate;
 /* SettingsFile represents a JSON-encoded configuration file.
  *
  * SettingsFile handles atomic write and file locking over a settings
- * file, which is a JSON file with a root object.
+ * file, which is a JSON file with a root object. The lock is held
+ * while the SettingsFile instance exists, and will prevent other
+ * processes from using that configuration simultaneously.
  *
  * Data is accessed via SettingsObject, either using the root property
  * or by creating a SettingsObject, optionally using a base path.
@@ -123,7 +125,17 @@ public:
     explicit SettingsObject(SettingsFile *file, const QString &path, QObject *parent = 0);
     explicit SettingsObject(SettingsObject *base, const QString &path, QObject *parent = 0);
 
-    /* Default SettingsFile used when constructing a SettingsObject */
+    /* Specify a SettingsFile to use by default on SettingsObject instances.
+     *
+     * After calling setDefaultFile, a SettingsObject created without any file, e.g.:
+     *
+     *     SettingsObject settings;
+     *     SettingsObject animals(QStringLiteral("animals"));
+     *
+     * Will use the specified SettingsFile instance by default. This is a convenience
+     * over passing around instances of SettingsFile in application use cases, and is
+     * particularly useful for QML.
+     */
     static SettingsFile *defaultFile();
     static void setDefaultFile(SettingsFile *file);
 
@@ -155,12 +167,42 @@ template<typename T> inline void SettingsObject::write(const QString &key, const
     write(key, QJsonValue(value));
 }
 
+template<> inline QString SettingsObject::read<QString>(const QString &key) const
+{
+    return read(key).toString();
+}
+
+template<> inline QJsonArray SettingsObject::read<QJsonArray>(const QString &key) const
+{
+    return read(key).toArray();
+}
+
+template<> inline QJsonObject SettingsObject::read<QJsonObject>(const QString &key) const
+{
+    return read(key).toObject();
+}
+
+template<> inline double SettingsObject::read<double>(const QString &key) const
+{
+    return read(key).toDouble();
+}
+
+template<> inline int SettingsObject::read<int>(const QString &key) const
+{
+    return read(key).toInt();
+}
+
+template<> inline bool SettingsObject::read<bool>(const QString &key) const
+{
+    return read(key).toBool();
+}
+
 template<> inline QDateTime SettingsObject::read<QDateTime>(const QString &key) const
 {
     QString value = read(key).toString();
     if (value.isEmpty())
         return QDateTime();
-    return QDateTime::fromString(value, Qt::ISODate);
+    return QDateTime::fromString(value, Qt::ISODate).toLocalTime();
 }
 
 template<> inline void SettingsObject::write<QDateTime>(const QString &key, const QDateTime &value)

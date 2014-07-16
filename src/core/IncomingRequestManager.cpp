@@ -155,7 +155,7 @@ void IncomingRequestManager::removeRequest(IncomingContactRequest *request)
 void IncomingRequestManager::addRejectedHost(const QByteArray &hostname)
 {
     SettingsObject *settings = contacts->identity->settings();
-    QJsonArray blacklist = settings->read("hostnameBlacklist").toArray();
+    QJsonArray blacklist = settings->read<QJsonArray>("hostnameBlacklist");
     if (!blacklist.contains(QString::fromLatin1(hostname))) {
         blacklist.append(QString::fromLatin1(hostname));
         settings->write("hostnameBlacklist", blacklist);
@@ -164,7 +164,7 @@ void IncomingRequestManager::addRejectedHost(const QByteArray &hostname)
 
 bool IncomingRequestManager::isHostnameRejected(const QByteArray &hostname) const
 {
-    QJsonArray blacklist = contacts->identity->settings()->read("hostnameBlacklist").toArray();
+    QJsonArray blacklist = contacts->identity->settings()->read<QJsonArray>("hostnameBlacklist");
     return blacklist.contains(QString::fromLatin1(hostname));
 }
 

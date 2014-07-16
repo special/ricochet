@@ -83,6 +83,9 @@ void IdentityManager::loadFromSettings()
 UserIdentity *IdentityManager::createIdentity(const QString &serviceDirectory, const QString &nickname)
 {
     UserIdentity *identity = UserIdentity::createIdentity(++highestID, serviceDirectory);
+    if (!identity)
+        return identity;
+
     if (!nickname.isEmpty())
         identity->setNickname(nickname);
 

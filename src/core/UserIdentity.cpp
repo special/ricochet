@@ -85,8 +85,11 @@ UserIdentity::UserIdentity(int id, QObject *parent)
 
 UserIdentity *UserIdentity::createIdentity(int uniqueID, const QString &dataDirectory)
 {
-    // There is actually not support for multiple identities currently.
+    // There is actually no support for multiple identities currently.
     Q_ASSERT(uniqueID == 0);
+    if (uniqueID != 0)
+        return 0;
+
     SettingsObject settings("identity");
     settings.write("initializing", true);
     if (dataDirectory.isEmpty())

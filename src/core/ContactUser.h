@@ -44,8 +44,17 @@ class UserIdentity;
 struct ChatMessageData;
 class ChatMessageCommand;
 class OutgoingContactRequest;
-class OutgoingContactSocket;
 class ConversationModel;
+
+#ifdef PROTOCOL_NEW
+namespace Protocol
+{
+    class OutboundConnector;
+    class Connection;
+}
+#else
+class OutgoingContactSocket;
+#endif
 
 /* Represents a user on the contact list.
  * All persistent uses of a ContactUser instance must either connect to the
@@ -86,6 +95,9 @@ public:
     explicit ContactUser(UserIdentity *identity, int uniqueID, QObject *parent = 0);
 
     ProtocolSocket *conn() const { return m_conn; }
+#ifdef PROTOCOL_NEW
+    Protocol::Connection *connection() { return m_connection; }
+#endif
     bool isConnected() const { return status() == Online; }
 
     OutgoingContactRequest *contactRequest() { return m_contactRequest; }
@@ -108,12 +120,30 @@ public:
     Q_INVOKABLE void deleteContact();
 
 public slots:
+#ifdef PROTOCOL_NEW
+    /* Assign a connection to this user
+     *
+     * The connection must be connected, and the peer must be authenticated and
+     * must match this user. ContactUser will assume ownership of the connection,
+     * and it will be closed and deleted when it's no longer used.
+     *
+     * It is valid to pass an incoming or outgoing connection. If there is already
+     * a connection, protocol-specific rules are applied and the new connection
+     * may be closed to favor the older one.
+     *
+     * If the existing connection is replaced, that is equivalent to disconnecting
+     * and reconnectng immediately - any ongoing operations will fail and need to
+     * be retried at a higher level.
+     */
+    void assignConnection(Protocol::Connection *connection);
+#else
+    void incomingProtocolSocket(QTcpSocket *socket);
+#endif
+
     void setNickname(const QString &nickname);
     void setHostname(const QString &hostname);
 
     void updateStatus();
-
-    void incomingProtocolSocket(QTcpSocket *socket);
 
 signals:
     void statusChanged();
@@ -136,10 +166,17 @@ private slots:
 
 private:
     ProtocolSocket *m_conn;
+#ifdef PROTOCOL_NEW
+    // XXX be paranoid about tracking deletion of m_connection
+    Protocol::Connection *m_connection;
+    Protocol::OutboundConnector *m_outgoingSocket;
+#else
+    OutgoingContactSocket *m_outgoingSocket;
+#endif
+
     Status m_status;
     quint16 m_lastReceivedChatID;
     OutgoingContactRequest *m_contactRequest;
-    OutgoingContactSocket *m_outgoingSocket;
     SettingsObject *m_settings;
     ConversationModel *m_conversation;
 

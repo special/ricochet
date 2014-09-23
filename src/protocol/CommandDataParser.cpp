@@ -288,7 +288,7 @@ CommandDataParser &CommandDataParser::operator>>(quint64 &value)
 CommandDataParser &CommandDataParser::operator>>(QString &string)
 {
     quint16 length = 0;
-    if (takeInt(length) && (p + length) <= d->size())
+    if (takeInt(length) && d->size() - p >= length)
     {
         string = QString::fromUtf8(d->constData() + p, length);
         p += length;
@@ -299,16 +299,16 @@ CommandDataParser &CommandDataParser::operator>>(QString &string)
     return *this;
 }
 
-CommandDataParser &CommandDataParser::readFixedData(QByteArray *dest, int size)
+CommandDataParser &CommandDataParser::readFixedData(QByteArray *dest, int readSize)
 {
-    if ((p + size) > d->size())
+    if (readSize < 0 || d->size() - p < readSize)
     {
         error = true;
         return *this;
     }
 
-    *dest = d->mid(p, size);
-    p += size;
+    *dest = d->mid(p, readSize);
+    p += readSize;
 
     return *this;
 }

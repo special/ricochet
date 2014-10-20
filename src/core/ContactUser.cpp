@@ -211,7 +211,12 @@ void ContactUser::onConnected()
 {
     m_settings->write("lastConnected", QDateTime::currentDateTime());
 
-#ifndef PROTOCOL_NEW
+#ifdef PROTOCOL_NEW
+    if (m_contactRequest && m_connection->purpose() == Protocol::Connection::Purpose::OutboundRequest) {
+        qDebug() << "Sending contact request for" << uniqueID << nickname();
+        m_contactRequest->sendRequest(m_connection);
+    }
+#else
     if (m_contactRequest) {
         qDebug() << "Implicitly accepting outgoing contact request for" << uniqueID << "from primary connection";
 
@@ -323,6 +328,8 @@ void ContactUser::deleteContact()
     deleteLater();
 }
 
+// XXX somewhere we need handling for end of request, either killing the connection
+// or changing its purpose
 void ContactUser::requestRemoved()
 {
     if (m_contactRequest) {
@@ -482,7 +489,12 @@ void ContactUser::assignConnection(Protocol::Connection *connection)
     qDebug() << "Assigned" << (isOutbound ? "outbound" : "inbound") << "connection to contact" << uniqueID;
 
     if (m_contactRequest && isOutbound) {
-        // XXX try deliver request
+        if (!connection->setPurpose(Protocol::Connection::Purpose::OutboundRequest)) {
+            qWarning() << "BUG: Failed setting connection purpose for request";
+            connection->close();
+            connection->deleteLater();
+            return;
+        }
     } else {
         if (m_contactRequest && !isOutbound) {
             qDebug() << "Implicitly accepting outgoing contact request for" << uniqueID << "due to incoming connection";

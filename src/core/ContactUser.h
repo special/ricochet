@@ -38,11 +38,8 @@
 #include <QMetaType>
 #include <QVariant>
 #include "utils/Settings.h"
-#include "protocol/ProtocolSocket.h"
 
 class UserIdentity;
-struct ChatMessageData;
-class ChatMessageCommand;
 class OutgoingContactRequest;
 class ConversationModel;
 
@@ -53,7 +50,10 @@ namespace Protocol
     class Connection;
 }
 #else
+#include "protocol/ProtocolSocket.h"
 class OutgoingContactSocket;
+struct ChatMessageData;
+class ChatMessageCommand;
 #endif
 
 /* Represents a user on the contact list.
@@ -77,8 +77,10 @@ class ContactUser : public QObject
     Q_PROPERTY(ConversationModel *conversation READ conversation CONSTANT)
 
     friend class ContactsManager;
-    friend class ChatMessageCommand;
     friend class OutgoingContactRequest;
+#ifndef PROTOCOL_NEW
+    friend class ChatMessageCommand;
+#endif
 
 public:
     enum Status
@@ -94,9 +96,10 @@ public:
 
     explicit ContactUser(UserIdentity *identity, int uniqueID, QObject *parent = 0);
 
-    ProtocolSocket *conn() const { return m_conn; }
 #ifdef PROTOCOL_NEW
     Protocol::Connection *connection() { return m_connection; }
+#else
+    ProtocolSocket *conn() const { return m_conn; }
 #endif
     bool isConnected() const { return status() == Online; }
 
@@ -153,10 +156,12 @@ signals:
     void nicknameChanged();
     void contactDeleted(ContactUser *user);
 
+#ifndef PROTOCOL_NEW
     /* Hack to allow creating models/windows/etc to handle other signals before they're
      * emitted; primarily, to allow UI to create models to handle incomingChatMessage */
     void prepareInteractiveHandler();
     void incomingChatMessage(const ChatMessageData &message);
+#endif
 
 private slots:
     void onConnected();
@@ -165,12 +170,12 @@ private slots:
     void onSettingsModified(const QString &key, const QJsonValue &value);
 
 private:
-    ProtocolSocket *m_conn;
 #ifdef PROTOCOL_NEW
     // XXX be paranoid about tracking deletion of m_connection
     Protocol::Connection *m_connection;
     Protocol::OutboundConnector *m_outgoingSocket;
 #else
+    ProtocolSocket *m_conn;
     OutgoingContactSocket *m_outgoingSocket;
 #endif
 

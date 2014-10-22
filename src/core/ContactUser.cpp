@@ -34,9 +34,6 @@
 #include "UserIdentity.h"
 #include "ContactsManager.h"
 #include "utils/SecureRNG.h"
-#include "protocol/GetSecretCommand.h"
-#include "protocol/ChatMessageCommand.h"
-#include "protocol/ProtocolConstants.h"
 #include "core/ContactIDValidator.h"
 #include "core/OutgoingContactRequest.h"
 #include "core/ConversationModel.h"
@@ -48,6 +45,9 @@
 #include "protocol/OutboundConnector.h"
 #include "utils/Useful.h"
 #else
+#include "protocol/GetSecretCommand.h"
+#include "protocol/ChatMessageCommand.h"
+#include "protocol/ProtocolConstants.h"
 #include "protocol/OutgoingContactSocket.h"
 #endif
 
@@ -72,8 +72,8 @@ ContactUser::ContactUser(UserIdentity *ident, int id, QObject *parent)
     m_conversation = new ConversationModel(this);
     m_conversation->setContact(this);
 
-    m_conn = new ProtocolSocket(this);
 #ifndef PROTOCOL_NEW
+    m_conn = new ProtocolSocket(this);
     connect(m_conn, SIGNAL(connected()), this, SLOT(onConnected()));
     connect(m_conn, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
 #endif
@@ -100,8 +100,10 @@ ContactUser *ContactUser::addNewContact(UserIdentity *identity, int id)
     ContactUser *user = new ContactUser(identity, id);
     user->settings()->write("whenCreated", QDateTime::currentDateTime());
 
+#ifndef PROTOCOL_NEW
     /* Generate the local secret and set it */
     user->settings()->write("localSecret", Base64Encode(SecureRNG::random(16)));
+#endif
 
     return user;
 }
@@ -273,9 +275,11 @@ void ContactUser::deleteContact()
 
     emit contactDeleted(this);
 
+#ifndef PROTOCOL_NEW
     m_conn->disconnect();
     delete m_conn;
     m_conn = 0;
+#endif
 
     m_settings->undefine();
     deleteLater();

@@ -190,6 +190,10 @@ private:
 
     void loadContactRequest();
     void setupOutgoingSocket();
+
+#ifdef PROTOCOL_NEW
+    void clearConnection();
+#endif
 };
 
 Q_DECLARE_METATYPE(ContactUser*)

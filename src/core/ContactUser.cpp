@@ -152,15 +152,19 @@ void ContactUser::setupOutgoingSocket()
         return;
 
 #ifdef PROTOCOL_NEW
-    if (hostname().isEmpty() || !port())
-        return;
+    if (m_outgoingSocket && m_outgoingSocket->status() == Ready) {
+        BUG() << "Called setupOutgoingSocket with an existing socket in Ready. This should've been deleted.";
+        m_outgoingSocket->disconnect(this);
+        m_outgoingSocket->deleteLater();
+        m_outgoingSocket = 0;
+    }
 
     if (!m_outgoingSocket) {
-        qDebug() << "Creating outgoing connection socket for contact";
         m_outgoingSocket = new Protocol::OutboundConnector(this);
         m_outgoingSocket->setAuthPrivateKey(identity->hiddenService()->cryptoKey());
         connect(m_outgoingSocket, &Protocol::OutboundConnector::ready, this, &ContactUser::assignConnection);
     }
+
 #else
     QByteArray secret = m_settings->read<Base64Encode>("remoteSecret");
     if (secret.isEmpty() || hostname().isEmpty() || !port())

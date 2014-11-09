@@ -133,8 +133,12 @@ void ContactUser::updateStatus()
     m_status = newStatus;
     emit statusChanged();
 
+#ifdef PROTOCOL_NEW
+    updateOutgoingSocket();
+#else
     if (m_status == Offline)
-        setupOutgoingSocket();
+        updateOutgoingSocket();
+#endif
 }
 
 void ContactUser::onSettingsModified(const QString &key, const QJsonValue &value)
@@ -144,7 +148,7 @@ void ContactUser::onSettingsModified(const QString &key, const QJsonValue &value
         emit nicknameChanged();
 }
 
-void ContactUser::setupOutgoingSocket()
+void ContactUser::updateOutgoingSocket()
 {
     if (m_status != Offline)
         return;
@@ -154,8 +158,8 @@ void ContactUser::setupOutgoingSocket()
         return;
 
 #ifdef PROTOCOL_NEW
-    if (m_outgoingSocket && m_outgoingSocket->status() == Ready) {
-        BUG() << "Called setupOutgoingSocket with an existing socket in Ready. This should've been deleted.";
+    if (m_outgoingSocket && m_outgoingSocket->status() == Protocol::OutboundConnector::Ready) {
+        BUG() << "Called updateOutgoingSocket with an existing socket in Ready. This should've been deleted.";
         m_outgoingSocket->disconnect(this);
         m_outgoingSocket->deleteLater();
         m_outgoingSocket = 0;
@@ -164,7 +168,11 @@ void ContactUser::setupOutgoingSocket()
     if (!m_outgoingSocket) {
         m_outgoingSocket = new Protocol::OutboundConnector(this);
         m_outgoingSocket->setAuthPrivateKey(identity->hiddenService()->cryptoKey());
-        connect(m_outgoingSocket, &Protocol::OutboundConnector::ready, this, &ContactUser::assignConnection);
+        connect(m_outgoingSocket, &Protocol::OutboundConnector::ready, this,
+            [this]() {
+                assignConnection(m_outgoingSocket->takeConnection(this));
+            }
+        );
     }
 
 #else
@@ -270,7 +278,7 @@ void ContactUser::setHostname(const QString &hostname)
         fh.append(QLatin1String(".onion"));
 
     m_settings->write("hostname", fh);
-    setupOutgoingSocket();
+    updateOutgoingSocket();
 }
 
 void ContactUser::deleteContact()

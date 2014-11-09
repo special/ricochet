@@ -189,7 +189,7 @@ private:
     static ContactUser *addNewContact(UserIdentity *identity, int id);
 
     void loadContactRequest();
-    void setupOutgoingSocket();
+    void updateOutgoingSocket();
 
 #ifdef PROTOCOL_NEW
     void clearConnection();

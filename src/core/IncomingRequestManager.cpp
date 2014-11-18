@@ -393,7 +393,24 @@ void IncomingContactRequest::setConnection(Protocol::Connection *c)
         connection->close();
     }
 
-    // XXX We should kill the connection if the contact request channel is closed
+    auto channel = c->findChannel<Protocol::ContactRequestChannel>();
+    if (!channel) {
+        BUG() << "Assigned connection to IncomingContactRequest without an open ContactRequestChannel";
+        c->close();
+        return;
+    }
+
+    // When the channel is closed, also close the connection
+    connect(channel, &Protocol::Channel::invalidated, this,
+        [this,c]() {
+            // XXX Make sure this doesn't happen on accept
+            if (connection == c) {
+                qDebug() << "Closing connection attached to an IncomingContactRequest because ContactRequestChannel was closed";
+                connection->close();
+                // XXX How is connection cleared on close?
+            }
+        }
+    );
 
     qDebug() << "Assigning connection to IncomingContactRequest from" << m_hostname;
     if (!c->setPurpose(Protocol::Connection::Purpose::InboundRequest)) {

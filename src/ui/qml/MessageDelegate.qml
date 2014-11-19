@@ -117,13 +117,21 @@ Column {
                 onClicked: delegate.showContextMenu(parent.hoveredLink)
             }
         }
+
+        Loader {
+            id: contentLoader
+        }
     }
 
     function showContextMenu(link) {
-        var object = contextMenu.createObject(delegate, (link !== undefined) ? { 'hoveredLink': link } : { })
-        // XXX QtQuickControls private API. The only other option is 'visible', and it is not reliable. See PR#183
-        object.popupVisibleChanged.connect(function() { if (!object.__popupVisible) object.destroy(1000) })
-        object.popup()
+        if (contentLoader.item !== null && contentLoader.item.hasOwnProperty('showContextMenu')) {
+            contentLoader.item.showContextMenu()
+        } else {
+            var object = contextMenu.createObject(delegate, (link !== undefined) ? { 'hoveredLink': link } : { })
+            // XXX QtQuickControls private API. The only other option is 'visible', and it is not reliable. See PR#183
+            object.popupVisibleChanged.connect(function() { if (!object.__popupVisible) object.destroy(1000) })
+            object.popup()
+        }
     }
 
     Component {
@@ -177,4 +185,29 @@ Column {
             }
         }
     }
+
+    states: [
+        State {
+            name: "incomingFile"
+            when: model.fileTransfer !== null
+
+            PropertyChanges {
+                target: contentLoader
+                source: Qt.resolvedUrl("FileTransferDelegate.qml")
+                //x: 6
+                //y: 6
+            }
+
+            PropertyChanges {
+                target: background
+                width: contentLoader.item.width// + 12
+                height: contentLoader.item.height// + 12
+            }
+
+            PropertyChanges {
+                target: textField
+                visible: false
+            }
+        }
+    ]
 }

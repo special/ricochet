@@ -36,6 +36,7 @@
 #include <QAbstractListModel>
 #include <QDateTime>
 #include "core/ContactUser.h"
+#include "core/FileTransfer.h"
 #include "protocol/ChatChannel.h"
 
 class ConversationModel : public QAbstractListModel
@@ -54,7 +55,8 @@ public:
         IsOutgoingRole,
         StatusRole,
         SectionRole,
-        TimespanRole
+        TimespanRole,
+        FileTransferRole
     };
 
     enum MessageStatus {
@@ -91,17 +93,20 @@ private slots:
     void outboundChannelClosed();
     void sendQueuedMessages();
     void onContactStatusChanged();
+    void fileTransferAdded(const QSharedPointer<FileTransfer> &transfer);
 
 private:
     struct MessageData {
         QString text;
+        // XXX I don't like having this on every message..
+        QSharedPointer<FileTransfer> transfer;
         QDateTime time;
         MessageId identifier;
         MessageStatus status;
         quint8 attemptCount;
 
         MessageData(const QString &text, const QDateTime &time, MessageId id, MessageStatus status)
-            : text(text), time(time), identifier(id), status(status), attemptCount(0)
+            : text(text), transfer(0), time(time), identifier(id), status(status), attemptCount(0)
         {
         }
     };

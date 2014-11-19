@@ -53,6 +53,28 @@ FocusScope {
             Layout.fillWidth: true
             height: 1
         }
+
+        ColumnLayout {
+            Layout.fillWidth: false
+            Label {
+                id: stats
+                font.pointSize: styleHelper.pointSize - 2
+                color: Qt.darker("#eaeced", 2.0)
+                text: "1 upload • 01:29"
+            }
+
+            Rectangle {
+                id: progress
+                Layout.fillWidth: true
+                height: 5
+                color: Qt.darker("#eaeced", 1.1)
+                Rectangle {
+                    color: Qt.darker("#76c7ff", 1.3)
+                    height: parent.height
+                    width: parent.width * 0.45
+                }
+            }
+        }
     }
 
     Rectangle {

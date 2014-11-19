@@ -31,6 +31,8 @@
  */
 
 #include "ConversationModel.h"
+#include "core/FileTransfer.h"
+#include "core/FileTransferManager.h"
 #include <QDebug>
 #ifdef PROTOCOL_NEW
 # include "protocol/Connection.h"
@@ -47,6 +49,7 @@ ConversationModel::ConversationModel(QObject *parent)
 #endif
     , m_unreadCount(0)
 {
+    connect(fileTransferManager, SIGNAL(transferAdded(FileTransfer*)), SLOT(fileTransferAdded(FileTransfer*)));
 }
 
 void ConversationModel::setContact(ContactUser *contact)
@@ -264,7 +267,7 @@ void ConversationModel::receiveMessage(const ChatMessageData &data)
     }
 
     beginInsertRows(QModelIndex(), row, row);
-    MessageData message = { data.text.trimmed(), data.when, data.messageID, Received };
+    MessageData message = { data.text.trimmed(), 0, data.when, data.messageID, Received };
     lastReceivedId = data.messageID;
     messages.insert(row, message);
     endInsertRows();
@@ -315,6 +318,22 @@ void ConversationModel::onContactStatusChanged()
     emit dataChanged(index(0, 0), index(rowCount()-1, 0), QVector<int>() << SectionRole);
 }
 
+void ConversationModel::fileTransferAdded(FileTransfer *transfer)
+{
+    if (!m_contact || transfer->contact() != m_contact)
+        return;
+
+    qDebug() << transfer;
+    beginInsertRows(QModelIndex(), 0, 1); // XXX
+    MessageData message(QString(), QDateTime::currentDateTime(), 0, transfer->isOutgoing() ? Delivered : Received);
+    message.transfer = transfer;
+    messages.insert(0, message);
+    // XXX
+    message.status = Received;
+    messages.insert(0, message);
+    endInsertRows();
+}
+
 QHash<int,QByteArray> ConversationModel::roleNames() const
 {
     QHash<int, QByteArray> roles;
@@ -323,6 +342,7 @@ QHash<int,QByteArray> ConversationModel::roleNames() const
     roles[IsOutgoingRole] = "isOutgoing";
     roles[StatusRole] = "status";
     roles[SectionRole] = "section";
+    roles[FileTransferRole] = "fileTransfer";
     return roles;
 }
 
@@ -345,6 +365,7 @@ QVariant ConversationModel::data(const QModelIndex &index, int role) const
         case TimestampRole: return message.time;
         case IsOutgoingRole: return message.status != Received;
         case StatusRole: return message.status;
+        case FileTransferRole: return QVariant::fromValue<FileTransfer*>(message.transfer);
 
         case SectionRole: {
             if (m_contact->status() == ContactUser::Online)

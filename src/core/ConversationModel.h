@@ -41,6 +41,8 @@
 #include "protocol/ChatChannel.h"
 #endif
 
+class FileTransfer;
+
 class ConversationModel : public QAbstractListModel
 {
     Q_OBJECT
@@ -60,7 +62,8 @@ public:
         TimestampRole = Qt::UserRole,
         IsOutgoingRole,
         StatusRole,
-        SectionRole
+        SectionRole,
+        FileTransferRole
     };
 
     enum MessageStatus {
@@ -102,17 +105,19 @@ private slots:
     void messageReply();
 #endif
     void onContactStatusChanged();
+    void fileTransferAdded(FileTransfer *transfer);
 
 private:
     struct MessageData {
         QString text;
+        FileTransfer *transfer;
         QDateTime time;
         MessageId identifier;
         MessageStatus status;
         quint8 attemptCount;
 
         MessageData(const QString &text, const QDateTime &time, MessageId id, MessageStatus status)
-            : text(text), time(time), identifier(id), status(status), attemptCount(0)
+            : text(text), transfer(0), time(time), identifier(id), status(status), attemptCount(0)
         {
         }
     };

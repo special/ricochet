@@ -33,6 +33,7 @@
         <file>MainToolBar.qml</file>
         <file>UnreadCountBadge.qml</file>
         <file>GeneralPreferences.qml</file>
+        <file>FileTransferDelegate.qml</file>
     </qresource>
     <qresource prefix="/ui/icons">
         <file>plus.png</file>

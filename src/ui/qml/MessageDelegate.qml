@@ -97,12 +97,20 @@ Column {
                     textField.linkHovered.connect(function() { })
             }
         }
+
+        Loader {
+            id: contentLoader
+        }
     }
 
     function showContextMenu(link) {
-        var object = contextMenu.createObject(delegate, (link !== undefined) ? { 'hoveredLink': link } : { })
-        object.visibleChanged.connect(function() { if (!object.visible) object.destroy() })
-        object.popup()
+        if (contentLoader.item !== null && contentLoader.item.hasOwnProperty('showContextMenu')) {
+            contentLoader.item.showContextMenu()
+        } else {
+            var object = contextMenu.createObject(delegate, (link !== undefined) ? { 'hoveredLink': link } : { })
+            object.visibleChanged.connect(function() { if (!object.visible) object.destroy() })
+            object.popup()
+        }
     }
 
     Component {
@@ -156,4 +164,29 @@ Column {
             }
         }
     }
+
+    states: [
+        State {
+            name: "incomingFile"
+            when: model.fileTransfer !== null
+
+            PropertyChanges {
+                target: contentLoader
+                source: Qt.resolvedUrl("FileTransferDelegate.qml")
+                x: 6
+                y: 6
+            }
+
+            PropertyChanges {
+                target: background
+                width: contentLoader.item.width + 12
+                height: contentLoader.item.height + 12
+            }
+
+            PropertyChanges {
+                target: textField
+                visible: false
+            }
+        }
+    ]
 }

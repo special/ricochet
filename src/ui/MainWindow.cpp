@@ -37,6 +37,7 @@
 #include "core/IdentityManager.h"
 #include "core/ContactIDValidator.h"
 #include "core/ConversationModel.h"
+#include "core/FileTransferManager.h"
 #include "tor/TorControl.h"
 #include "tor/TorManager.h"
 #include "tor/TorProcess.h"
@@ -71,6 +72,8 @@ MainWindow::MainWindow(QObject *parent)
     qmlRegisterUncreatableType<ContactUser>("im.ricochet", 1, 0, "ContactUser", QString());
     qmlRegisterUncreatableType<UserIdentity>("im.ricochet", 1, 0, "UserIdentity", QString());
     qmlRegisterUncreatableType<ContactsManager>("im.ricochet", 1, 0, "ContactsManager", QString());
+    qmlRegisterUncreatableType<FileTransfer>("im.ricochet", 1, 0, "FileTransfer", QString());
+    qmlRegisterUncreatableType<FileTransferManager>("im.ricochet", 1, 0, "FileTransferManager", QString());
     qmlRegisterUncreatableType<IncomingRequestManager>("im.ricochet", 1, 0, "IncomingRequestManager", QString());
     qmlRegisterUncreatableType<IncomingContactRequest>("im.ricochet", 1, 0, "IncomingContactRequest", QString());
     qmlRegisterUncreatableType<OutgoingContactRequest>("im.ricochet", 1, 0, "OutgoingContactRequest", QString());
@@ -86,6 +89,7 @@ MainWindow::MainWindow(QObject *parent)
 
     Q_ASSERT(!identityManager->identities().isEmpty());
     qml->rootContext()->setContextProperty(QLatin1String("userIdentity"), identityManager->identities()[0]);
+    qml->rootContext()->setContextProperty(QLatin1String("fileTransferManager"), fileTransferManager);
     qml->rootContext()->setContextProperty(QLatin1String("torControl"), torControl);
     qml->rootContext()->setContextProperty(QLatin1String("torInstance"), Tor::TorManager::instance());
     qml->rootContext()->setContextProperty(QLatin1String("uiMain"), this);

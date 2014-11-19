@@ -81,7 +81,7 @@ ApplicationWindow {
 
                 Loader {
                     id: offlineLoader
-                    active: torControl.torStatus !== TorControl.TorReady || (item !== null && item.visible)
+                    active: (!uiSettings.data.offlineMode && torControl.torStatus !== TorControl.TorReady) || (item !== null && item.visible)
                     anchors.fill: parent
                     source: Qt.resolvedUrl("OfflineStateItem.qml")
                 }

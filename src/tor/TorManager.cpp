@@ -148,6 +148,10 @@ void TorManager::start()
     }
 
     SettingsObject settings(QStringLiteral("tor"));
+    if (settings.read("offlineMode").toBool()) {
+        return;
+    }
+
     if (settings.read("controlPort").isUndefined()) {
         // Launch a bundled Tor instance
         QString executable = d->torExecutablePath();

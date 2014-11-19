@@ -129,7 +129,9 @@ SOURCES += src/main.cpp \
     src/tor/TorSocket.cpp \
     src/ui/LinkedText.cpp \
     src/utils/Settings.cpp \
-    src/utils/PendingOperation.cpp
+    src/utils/PendingOperation.cpp \
+    src/core/FileTransfer.cpp \
+    src/core/FileTransferManager.cpp
 
 HEADERS += src/ui/MainWindow.h \
     src/ui/ContactsModel.h \
@@ -158,7 +160,9 @@ HEADERS += src/ui/MainWindow.h \
     src/tor/TorSocket.h \
     src/ui/LinkedText.h \
     src/utils/Settings.h \
-    src/utils/PendingOperation.h
+    src/utils/PendingOperation.h \
+    src/core/FileTransfer.h \
+    src/core/FileTransferManager.h
 
 contains(DEFINES,PROTOCOL_NEW) {
     SOURCES += src/protocol/Channel.cpp \

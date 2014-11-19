@@ -32,6 +32,7 @@
 
 #include "ui/MainWindow.h"
 #include "core/IdentityManager.h"
+#include "core/FileTransferManager.h"
 #include "tor/TorManager.h"
 #include "tor/TorControl.h"
 #include "utils/CryptoKey.h"
@@ -85,7 +86,7 @@ int main(int argc, char *argv[])
     torControl = torManager->control();
     torManager->start();
 
-    /* Identities */
+    fileTransferManager = new FileTransferManager;
     identityManager = new IdentityManager;
 
     /* Window */

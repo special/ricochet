@@ -148,6 +148,9 @@ void TorManager::start()
     }
 
     SettingsObject settings(QStringLiteral("tor"));
+    if (settings.read("offlineMode").toBool()) {
+        return;
+    }
 
     // If a control port is defined by config or environment, skip launching tor
     if (!settings.read("controlPort").isUndefined() ||

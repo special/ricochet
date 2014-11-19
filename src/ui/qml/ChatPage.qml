@@ -86,6 +86,30 @@ FocusScope {
         model: conversationModel
     }
 
+    DropArea {
+        anchors.fill: parent
+        keys: [ "text/uri-list" ]
+        onEntered: {
+            var urls = drag.urls
+            var ok = urls.length > 0
+            for (var i = 0; i < urls.length; i++) {
+                if (urls[i].substr(0, 5) !== "file:") {
+                    ok = false
+                    break
+                }
+            }
+
+            drag.accepted = ok
+        }
+
+        onDropped: {
+            var urls = drop.urls
+            for (var i = 0; i < urls.length; i++) {
+                fileTransferManager.sendFile(contact, urls[i])
+            }
+        }
+    }
+
     StatusBar {
         id: statusBar
         anchors {

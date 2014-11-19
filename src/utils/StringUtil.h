@@ -35,6 +35,7 @@
 
 #include <QByteArray>
 #include <QList>
+#include <QString>
 
 QByteArray quotedString(const QByteArray &string);
 
@@ -42,5 +43,7 @@ QByteArray quotedString(const QByteArray &string);
 QByteArray unquotedString(const QByteArray &string);
 
 QList<QByteArray> splitQuotedStrings(const QByteArray &input, char separator);
+
+QString sanitizedFileName(const QString &input);
 
 #endif // STRINGUTIL_H

@@ -31,6 +31,7 @@
  */
 
 #include "StringUtil.h"
+#include <QVector>
 
 QByteArray quotedString(const QByteArray &string)
 {
@@ -116,3 +117,76 @@ QList<QByteArray> splitQuotedStrings(const QByteArray &input, char separator)
 
     return out;
 }
+
+/* Sanitize an input for use as a file name, removing dangerous,
+ * meaningful, or unprintable characters as well as extensions and
+ * sequences that confuse some operating systems.
+ *
+ * Based in part on logic from Chromium filename_util.cc and
+ * file_util_icu.cc, Copyright 2014 The Chromium Authors.
+ */
+QString sanitizedFileName(const QString &rawInput)
+{
+    QString blacklist = QStringLiteral("\"*/:<>?\\|");
+    QChar replacement = QLatin1Char('-');
+    QVector<uint> input = rawInput.trimmed().toUcs4();
+    QString re;
+
+    foreach (uint value, input) {
+        QChar c = QChar(value);
+        // Strip leading '.'
+        if (re.isEmpty() && c == QLatin1Char('.'))
+            continue;
+
+        // Replace blacklisted characters
+        if (c.isNonCharacter() ||
+            c.category() == QChar::Other_Control ||
+            c.category() == QChar::Other_Format ||
+            blacklist.contains(c))
+        {
+            re.append(replacement);
+        } else {
+            re.append(c);
+        }
+    }
+
+    // Remove trailing .
+    while (re.endsWith(QLatin1Char('.')))
+        re.chop(1);
+
+#ifdef Q_OS_WIN
+    // Find extension
+    int dot = re.lastIndexOf(QLatin1Char('.'));
+    QString extension = (dot < 0) ? QString() : re.mid(dot+1).toLower();
+
+    // Windows shell has special behavior for extensions .lnk, .local, and CLSIDs
+    if (extension == QStringLiteral("lnk") ||
+        extension == QStringLiteral("local") ||
+        (extension.startsWith(QLatin1Char('{')) && extension.endsWith(QLatin1Char('}'))))
+    {
+        re.append(QStringLiteral(".download"));
+    }
+
+    // Windows forbids device filenames, and has special behavior for
+    // desktop.ini and thumbs.db
+    static const char* const forbidden[] = {
+        "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5",
+        "com6", "com7", "com8", "com9", "lpt1", "lpt2", "lpt3", "lpt4",
+        "lpt5", "lpt6", "lpt7", "lpt8", "lpt9", "clock$",
+        "desktop.ini", "thumbs.db"
+    };
+
+    QString lower = re.toLower();
+    for (unsigned i = 0; i < sizeof(forbidden)/sizeof(*forbidden); i++) {
+        if (lower == QLatin1String(forbidden[i]) ||
+            lower.startsWith(QLatin1String(forbidden[i]) + QLatin1Char('.')))
+        {
+            re.prepend(QLatin1Char('_'));
+            break;
+        }
+    }
+#endif
+
+    return re;
+}
+

@@ -1,0 +1,31 @@
+Incoming transfers must be accepted before they begin to download
+    This opens the file save dialog to choose a location
+        Be aware of recent documents issues across all platforms..
+    Option to set a save location (per-contact? global?)
+    Option to auto-accept
+
+To address cases where conversation pushes transfer off screen, add info to the chat window header
+    Press to open a separate window detailing transfers from all contacts?
+
+When the transfer ends, move it to the current position in the conversation to bring it back to attention
+
+On completed transfer, allow opening directly. Maybe a prompt for safety concerns.
+
+Resume must be possible by saving over existing file
+    Also be smart when resuming a transfer that is in the current history
+
+Drag-and-drop for outgoing transfers
+    Plus some other UI prompt.. button in header? near input? context menu? OS X menu
+
+Special case for images of reasonable size:
+    When image is under some maximum (~2MB?), send trigger and dimensions
+    Receiving end uses the inline image delegate of the appropriate size, and accepts download automatically
+    Download goes *TO MEMORY*, not to disk unless auto-save is enabled anyway
+    Recipient may click to display inline, and may choose to save
+    If unsaved, they expire out of memory fairly soon to avoid ballooning usage
+        UI for this needs to be clear
+
+-----
+
+File transfers triggering alert / new window / etc
+Icon - check license, make upload variant?

@@ -31,6 +31,7 @@
  */
 
 #include "StringUtil.h"
+#include <QVector>
 
 QByteArray quotedString(const QByteArray &string)
 {
@@ -128,42 +129,25 @@ QString sanitizedFileName(const QString &rawInput)
 {
     QString blacklist = QStringLiteral("\"*/:<>?\\|");
     QChar replacement = QLatin1Char('-');
-    QString input = rawInput.trimmed();
+    QVector<uint> input = rawInput.trimmed().toUcs4();
     QString re;
 
-    for (int i = 0; i < input.size(); i++) {
+    foreach (uint value, input) {
+        QChar c = QChar(value);
         // Strip leading '.'
-        if (re.isEmpty() && input[i] == QLatin1Char('.'))
+        if (re.isEmpty() && c == QLatin1Char('.'))
             continue;
 
         // Replace blacklisted characters
-        QChar c = input[i];
-        QChar::Category category = c.category();
-
-        if (c.isHighSurrogate()) {
-            if ((i+1) < input.size() && QChar(input[i+1]).isLowSurrogate()) {
-                category = QChar::category(QChar::surrogateToUcs4(input[i], input[i+1]));
-            } else {
-                c = QChar();
-            }
-        } else if (c.isLowSurrogate()) {
-            if (i > 0 && QChar(input[i-1]).isHighSurrogate()) {
-                category = QChar::category(QChar::surrogateToUcs4(input[i-1], input[i]));
-            } else {
-                c = QChar();
-            }
-        }
-
         if (c.isNonCharacter() ||
-            category == QChar::Other_Control ||
-            category == QChar::Other_Format ||
+            c.category() == QChar::Other_Control ||
+            c.category() == QChar::Other_Format ||
             blacklist.contains(c))
         {
             re.append(replacement);
-            continue;
+        } else {
+            re.append(c);
         }
-
-        re.append(c);
     }
 
     // Remove trailing .

@@ -35,6 +35,19 @@
 
 using namespace Protocol;
 
+/* Regarding message and nickname limitations:
+ *
+ * For messages, we should use limits the same as those of chat, including limits on the
+ * length and content.
+ *
+ * For nicknames, we should be quite restrictive, and these should be applied consistently
+ * with protocol and UI. It should be similar to the restrictions on filenames, particularly
+ * by excluding control characters. Length limit is short.
+ *
+ * If the nickname duplicates an existing contact, it must be changed for the request, but
+ * the peer must not be aware of this in any way.
+ */
+
 ContactRequestChannel::ContactRequestChannel(Direction direction, Connection *connection)
     : Channel(QStringLiteral("im.ricochet.contact.request"), direction, connection)
     , m_responseStatus(Data::ContactRequest::Response::Undefined)
@@ -88,6 +101,7 @@ bool ContactRequestChannel::allowInboundChannelRequest(const Data::Control::Open
 {
     using namespace Data::ContactRequest;
 
+    // XXX move later. avoid abuse via repetition.
     // If this connection is already KnownContact, report that the request is accepted
     if (connection()->purpose() == Connection::Purpose::KnownContact) {
         QScopedPointer<Response> response(new Response);

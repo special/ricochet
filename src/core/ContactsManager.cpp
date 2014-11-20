@@ -185,6 +185,34 @@ ContactUser *ContactsManager::lookupUniqueID(int uniqueID) const
     return 0;
 }
 
+bool ContactsManager::isValidNickname(const QString &input)
+{
+    if (input.isEmpty())
+        return false;
+
+    // May not start or end with whitespace characters
+    if (input != input.trimmed())
+        return false;
+
+    // May not exceed 25 UTF-32 characters
+    QVector<uint> chars = input.toUcs4();
+    // XXX Magic number
+    if (chars.size() > 25)
+        return false;
+
+    // May not contain unicode control or format characters
+    foreach (uint value, chars) {
+        QChar c(value);
+        if (c.isNonCharacter() || c.category() == QChar::Other_Control ||
+                c.category() == QChar::Other_Format)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void ContactsManager::onUnreadCountChanged()
 {
     ConversationModel *model = qobject_cast<ConversationModel*>(sender());

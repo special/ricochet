@@ -75,6 +75,8 @@ public:
 
     static QString hostnameFromID(const QString &ID);
 
+    bool isValidNickname(const QString &nickname);
+
     void loadFromSettings();
 
 signals:

@@ -156,6 +156,7 @@ void OutboundConnectorPrivate::abort()
     }
 
     if (socket) {
+        qDebug() << "Destroying outbound connector socket" << socket;
         socket->disconnect(this);
         delete socket;
         socket = 0;
@@ -222,7 +223,7 @@ void OutboundConnectorPrivate::setError(const QString &message)
 
     errorRetryTimer.setSingleShot(true);
     errorRetryTimer.start(60 * 1000);
-    qDebug() << "Retrying outbound connection attempt in 60 seconds after an error";
+    qDebug() << "Retrying outbound connection attempt to" << hostname << "in 60 seconds after an error";
 }
 
 void OutboundConnectorPrivate::retryAfterError()

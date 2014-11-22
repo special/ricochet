@@ -104,7 +104,7 @@ void TorSocket::reconnect()
 
     m_connectTimer.stop();
     if (!m_host.isEmpty() && m_port) {
-        qDebug() << "Attempting reconnection of socket to" << m_host << m_port;
+        qDebug() << this << "Attempting reconnection of socket to" << m_host << m_port;
         connectToHost(m_host, m_port);
     }
 }
@@ -127,6 +127,8 @@ void TorSocket::connectToHost(const QString &hostName, quint16 port, OpenMode op
     m_host = hostName;
     m_port = port;
 
+    qDebug() << this << "Connecting socket to" << m_host << m_port;
+
     if (!torControl->hasConnectivity())
         return;
 
@@ -146,6 +148,6 @@ void TorSocket::onFailed()
     if (reconnectEnabled() && !m_connectTimer.isActive()) {
         m_connectAttempts++;
         m_connectTimer.start(reconnectInterval() * 1000);
-        qDebug() << "Reconnecting socket to" << m_host << m_port << "in" << m_connectTimer.interval() / 1000 << "seconds";
+        qDebug() << this << "Reconnecting socket to" << m_host << m_port << "in" << m_connectTimer.interval() / 1000 << "seconds";
     }
 }

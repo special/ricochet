@@ -457,7 +457,7 @@ void ContactUser::assignConnection(Protocol::Connection *connection)
       * we would lose the strcmp comparison above.
       */
     if (!isOutbound && m_outgoingSocket) {
-        if (m_outgoingSocket->status() < Protocol::OutboundConnector::Authenticating || !preferOutbound) {
+        if (m_outgoingSocket->status() != Protocol::OutboundConnector::Authenticating || !preferOutbound) {
             // Inbound connection wins; outbound connection attempt will abort when status changes
             qDebug() << "Aborting outbound connection attempt because we got an inbound connection instead";
         } else {

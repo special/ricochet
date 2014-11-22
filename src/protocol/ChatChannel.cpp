@@ -140,6 +140,7 @@ bool ChatChannel::sendChatMessageWithId(QString text, QDateTime time, MessageId 
 
 void ChatChannel::handleChatMessage(const Data::Chat::ChatMessage &message)
 {
+    // XXX Some of these closeChannel should use negative acknowledgement instead
     if (direction() != Inbound) {
         qWarning() << "Rejected inbound message on an outbound chat channel";
         closeChannel();

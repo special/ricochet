@@ -72,8 +72,29 @@ void ContactRequestChannel::setMessage(const QString &message)
         return;
     }
 
-    // XXX length limit & validity
+    if (message.size() > Data::ContactRequest::MessageMaxCharacters) {
+        BUG() << "Outbound contact request message is too long (" << message.size() << ")";
+        return;
+    }
+
     m_message = message;
+}
+
+static bool isAcceptableNickname(const QString &input)
+{
+    if (input.size() > Data::ContactRequest::NicknameMaxCharacters)
+        return false;
+
+    QVector<uint> chars = input.toUcs4();
+    foreach (uint value, chars) {
+        QChar c(value);
+        if (c.category() == QChar::Other_Format ||
+            c.category() == QChar::Other_Control ||
+            c.isNonCharacter())
+            return false;
+    }
+
+    return true;
 }
 
 QString ContactRequestChannel::nickname() const
@@ -93,7 +114,11 @@ void ContactRequestChannel::setNickname(const QString &nickname)
         return;
     }
 
-    // XXX length limit & validity
+    if (!isAcceptableNickname(nickname)) {
+        BUG() << "Outbound contact request nickname isn't acceptable:" << nickname;
+        return;
+    }
+
     m_nickname = nickname;
 }
 
@@ -142,8 +167,13 @@ bool ContactRequestChannel::allowInboundChannelRequest(const Data::Control::Open
     QString nickname = QString::fromStdString(contactData.nickname());
     QString message = QString::fromStdString(contactData.message_text());
 
-    // XXX validate nickname (length, content)
-    // XXX validate message
+    if (message.size() > Data::ContactRequest::MessageMaxCharacters ||
+        !isAcceptableNickname(nickname))
+    {
+        qDebug() << "Rejecting incoming contact request with invalid nickname/message";
+        result->set_error_message(QStringLiteral("Nickname or message is too long").toStdString());
+        return false;
+    }
 
     m_nickname = nickname;
     m_message = message;

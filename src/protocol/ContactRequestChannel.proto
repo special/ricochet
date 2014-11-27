@@ -1,6 +1,11 @@
 package Protocol.Data.ContactRequest;
 import "ControlChannel.proto";
 
+enum Limits {
+    MessageMaxCharacters = 2000;
+    NicknameMaxCharacters = 30;
+}
+
 extend Control.OpenChannel {
     optional ContactRequest contact_request = 200;
 }

@@ -61,7 +61,6 @@ public:
 
 signals:
     void requestReceived();
-    // XXX don't allow invalid status transitions
     void requestStatusChanged(Status status, const QString &message);
 
 protected:

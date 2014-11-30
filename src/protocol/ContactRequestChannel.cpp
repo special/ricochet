@@ -126,15 +126,6 @@ bool ContactRequestChannel::allowInboundChannelRequest(const Data::Control::Open
 {
     using namespace Data::ContactRequest;
 
-    // XXX move later. avoid abuse via repetition.
-    // If this connection is already KnownContact, report that the request is accepted
-    if (connection()->purpose() == Connection::Purpose::KnownContact) {
-        QScopedPointer<Response> response(new Response);
-        response->set_status(Response::Accepted);
-        result->SetAllocatedExtension(Data::ContactRequest::response, response.take());
-        return false;
-    }
-
     // We'll only accept requests on inbound connections with an unknown purpose
     if (connection()->direction() != Connection::ServerSide ||
         connection()->purpose() != Connection::Purpose::Unknown)
@@ -163,6 +154,14 @@ bool ContactRequestChannel::allowInboundChannelRequest(const Data::Control::Open
         return false;
     }
 
+    // If this connection is already KnownContact, report that the request is accepted
+    if (connection()->purpose() == Connection::Purpose::KnownContact) {
+        QScopedPointer<Response> response(new Response);
+        response->set_status(Response::Accepted);
+        result->SetAllocatedExtension(Data::ContactRequest::response, response.take());
+        return false;
+    }
+
     ContactRequest contactData = request->GetExtension(Data::ContactRequest::contact_request);
     QString nickname = QString::fromStdString(contactData.nickname());
     QString message = QString::fromStdString(contactData.message_text());
@@ -184,8 +183,6 @@ bool ContactRequestChannel::allowInboundChannelRequest(const Data::Control::Open
         BUG() << "No response to incoming contact request after requestReceived signal";
         setResponseStatus(Response::Error, QStringLiteral("internal error"));
     }
-
-    // XXX figure out purpose relationship here; I think request is responsible, but we'll see..
 
     QScopedPointer<Response> response(new Response);
     response->set_status(m_responseStatus);
@@ -279,16 +276,30 @@ void ContactRequestChannel::receivePacket(const QByteArray &packet)
 
 bool ContactRequestChannel::handleResponse(const Data::ContactRequest::Response *response)
 {
-    // XXX validate status
-    if (response->status() == Data::ContactRequest::Response::Undefined) {
+    using namespace Data::ContactRequest;
+    if (response->status() == Response::Undefined) {
         qDebug() << "Got an invalid response (undefined status) to a contact request";
         return false;
     }
 
-    // XXX validate message
-    emit requestStatusChanged(response->status(), QString::fromStdString(response->error_message()));
+    if (m_responseStatus > Response::Pending) {
+        qDebug() << "Received a response" << response->status() << "to a contact request which already had a final response" << m_responseStatus;
+        return false;
+    }
 
-    // XXX If this response is final, the channel has to be closed now
+    QString message(QString::fromStdString(response->error_message()));
+    if (message.size() > MessageMaxCharacters) {
+        qDebug() << "Received a contact request response with an overly long message of " << message.size() << "characters";
+        message.clear();
+    }
+
+    m_responseStatus = response->status();
+    emit requestStatusChanged(m_responseStatus, message);
+    // If the response is final, close the channel. Use a queued invoke to avoid any potential
+    // issue when called from processChannelOpenResult
+    if (m_responseStatus > Response::Pending)
+        metaObject()->invokeMethod(this, "closeChannel", Qt::QueuedConnection);
+
     return true;
 }
 

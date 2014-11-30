@@ -404,7 +404,9 @@ void IncomingContactRequest::setConnection(Protocol::Connection *c)
     connect(channel, &Protocol::Channel::invalidated, this,
         [this,c]() {
             // XXX Make sure this doesn't happen on accept
-            if (connection == c) {
+            if (connection == c &&
+                connection->purpose() == Protocol::Connection::Purpose::InboundRequest)
+            {
                 qDebug() << "Closing connection attached to an IncomingContactRequest because ContactRequestChannel was closed";
                 connection->close();
                 // XXX How is connection cleared on close?

@@ -143,17 +143,35 @@ void OutgoingContactRequest::sendRequest(Protocol::Connection *connection)
         return;
     }
 
-    // XXX channel close, rejected
+    if (connection->purpose() != Protocol::Connection::Purpose::OutboundRequest) {
+        BUG() << "OutgoingContactRequest told to use a connection of invalid purpose" << int(connection->purpose());
+        return;
+    }
+
+    // XXX timeouts
     Protocol::ContactRequestChannel *channel = new Protocol::ContactRequestChannel(Protocol::Channel::Outbound, connection);
     connect(channel, &Protocol::ContactRequestChannel::requestStatusChanged,
             this, &OutgoingContactRequest::requestStatusChanged);
+    // On any final response, the channel will be closed. Unless the purpose has been
+    // changed (to KnownContact, on accept), close the connection at that time. That
+    // will eventually trigger a retry via ContactUser if the request is still valid.
+    connect(channel, &Protocol::Channel::invalidated, this,
+        [this,connection]() {
+            // XXX Make sure this doesn't happen on accept (purpose must be changed first)
+            if (connection->isConnected() &&
+                connection->purpose() == Protocol::Connection::Purpose::OutboundRequest)
+            {
+                qDebug() << "Closing connection attached to an OutgoingContactRequest because ContactRequestChannel was closed";
+                connection->close();
+            }
+        }
+    );
 
     if (!message().isEmpty())
         channel->setMessage(message());
     if (!myNickname().isEmpty())
         channel->setNickname(myNickname());
 
-    // XXX who is responsible for deletion if openChannel fails?
     if (!channel->openChannel()) {
         BUG() << "Channel for outgoing contact request failed";
         return;

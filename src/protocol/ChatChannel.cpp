@@ -140,34 +140,31 @@ bool ChatChannel::sendChatMessageWithId(QString text, QDateTime time, MessageId 
 
 void ChatChannel::handleChatMessage(const Data::Chat::ChatMessage &message)
 {
-    // XXX Some of these closeChannel should use negative acknowledgement instead
-    if (direction() != Inbound) {
-        qWarning() << "Rejected inbound message on an outbound chat channel";
-        closeChannel();
-        return;
-    }
+    QScopedPointer<Data::Chat::ChatAcknowledge> response(new Data::Chat::ChatAcknowledge);
 
     // QString::fromStdString decodes the string as UTF-8, replacing all invalid sequences and
     // codepoints with the unicode replacement character.
     QString text = QString::fromStdString(message.message_text());
-    if (text.isEmpty()) {
+
+    if (direction() != Inbound) {
+        qWarning() << "Rejected inbound message on an outbound chat channel";
+        response->set_accepted(false);
+    } else if (text.isEmpty()) {
         qWarning() << "Rejected empty chat message";
-        closeChannel();
-        return;
+        response->set_accepted(false);
     } else if (text.size() > MessageMaxCharacters) {
         qWarning() << "Rejected oversize chat message of" << text.size() << "characters";
-        closeChannel();
-        return;
+        response->set_accepted(false);
+    } else {
+        QDateTime time = QDateTime::currentDateTime();
+        if (message.has_time_delta() && message.time_delta() <= 0)
+            time = time.addSecs(message.time_delta());
+
+        emit messageReceived(text, time, message.message_id());
+        response->set_accepted(true);
     }
 
-    QDateTime time = QDateTime::currentDateTime();
-    if (message.has_time_delta() && message.time_delta() <= 0)
-        time = time.addSecs(message.time_delta());
-
-    emit messageReceived(text, time, message.message_id());
-
     if (message.has_message_id()) {
-        QScopedPointer<Data::Chat::ChatAcknowledge> response(new Data::Chat::ChatAcknowledge);
         response->set_message_id(message.message_id());
         Data::Chat::Packet packet;
         packet.set_allocated_chat_acknowledge(response.take());

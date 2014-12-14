@@ -217,8 +217,13 @@ void OutgoingContactRequest::removeRequest()
         m_client->deleteLater();
         m_client = 0;
     }
+#else
+    if (user->connection()) {
+        Channel *channel = user->connection()->findChannel<ContactRequestChannel>();
+        if (channel)
+            channel->closeChannel();
+    }
 #endif
-    // XXX close channel or disconnect or whatever is necessary
 
     /* Clear the request settings */
     m_settings->undefine();
@@ -239,7 +244,6 @@ void OutgoingContactRequest::reject(bool error, const QString &reason)
     m_settings->write("rejectMessage", reason);
     setStatus(error ? Error : Rejected);
 
-    // XXX close channel or disconnect
 #ifndef PROTOCOL_NEW
     if (m_client)
     {
@@ -247,6 +251,12 @@ void OutgoingContactRequest::reject(bool error, const QString &reason)
         m_client->close();
         m_client->deleteLater();
         m_client = 0;
+    }
+#else
+    if (user->connection()) {
+        Channel *channel = user->connection()->findChannel<ContactRequestChannel>();
+        if (channel)
+            channel->closeChannel();
     }
 #endif
 

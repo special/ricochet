@@ -33,6 +33,7 @@
 #include "FileTransfer.h"
 #include "utils/SecureRNG.h"
 #include "utils/StringUtil.h"
+#include "utils/Useful.h"
 #include <QFile>
 #include <QFileInfo>
 #include <QDebug>
@@ -43,12 +44,11 @@ public:
     FileTransfer * const q;
 
     ContactUser *contact;
-    bool isOutgoing;
+    bool isOutbound;
     quint32 identifier;
     QString fileName;
     QIODevice *localDevice;
     FileTransfer::State state;
-    QString errorMessage;
     quint64 fileSize;
     quint64 transferredSize;
     quint64 transferRate;
@@ -56,7 +56,7 @@ public:
     FileTransferPrivate(FileTransfer *qptr, ContactUser *c, bool out)
         : q(qptr)
         , contact(c)
-        , isOutgoing(out)
+        , isOutbound(out)
         , identifier(0)
         , localDevice(0)
         , state(FileTransfer::Unknown)
@@ -72,11 +72,10 @@ public:
     }
 
     void setState(FileTransfer::State state);
-    void setError(const QString &errorMessage);
 };
 
-FileTransfer::FileTransfer(ContactUser *contact, bool isOutgoing, QObject *parent)
-    : QObject(parent), d(new FileTransferPrivate(this, contact, isOutgoing))
+FileTransfer::FileTransfer(ContactUser *contact, bool isOutbound, QObject *parent)
+    : QObject(parent), d(new FileTransferPrivate(this, contact, isOutbound))
 {
 }
 
@@ -90,15 +89,9 @@ void FileTransferPrivate::setState(FileTransfer::State newState)
     if (state == newState)
         return;
 
+    qDebug() << this << "State" << state << "->" << newState;
     state = newState;
     emit q->stateChanged();
-}
-
-void FileTransferPrivate::setError(const QString &message)
-{
-    errorMessage = message;
-    emit q->errorMessageChanged();
-    setState(FileTransfer::Failed);
 }
 
 ContactUser *FileTransfer::contact() const
@@ -106,9 +99,9 @@ ContactUser *FileTransfer::contact() const
     return d->contact;
 }
 
-bool FileTransfer::isOutgoing() const
+bool FileTransfer::isOutbound() const
 {
-    return d->isOutgoing;
+    return d->isOutbound;
 }
 
 quint32 FileTransfer::identifier() const
@@ -150,17 +143,22 @@ QIODevice *FileTransfer::localDevice() const
     return d->localDevice;
 }
 
-// XXX ownership
 void FileTransfer::setLocalDevice(QIODevice *device)
 {
     if (d->localDevice == device)
         return;
 
-    // XXX When is it valid to change local device?
+    if (d->state == Active) {
+        BUG() << "Cannot change local device of file transfer in active state";
+        return;
+    }
+
     delete d->localDevice;
     d->localDevice = device;
+    if (device)
+        device->setParent(this);
 
-    if (d->localDevice && isOutgoing()) {
+    if (d->localDevice && isOutbound()) {
         d->fileSize = d->localDevice->size();
         emit fileSizeChanged();
     }
@@ -198,8 +196,10 @@ QUrl FileTransfer::localFileUrl() const
 
 void FileTransfer::setLocalFileUrl(const QUrl &fileUrl)
 {
-    if (!fileUrl.isLocalFile())
+    if (!fileUrl.isLocalFile()) {
+        BUG() << "Cannot set transfer localFileUrl to a non-file URL";
         return;
+    }
     setLocalFilePath(fileUrl.toLocalFile());
 }
 
@@ -213,11 +213,6 @@ FileTransfer::State FileTransfer::state() const
     return d->state;
 }
 
-QString FileTransfer::errorMessage() const
-{
-    return d->errorMessage;
-}
-
 quint64 FileTransfer::transferredSize() const
 {
     return d->transferredSize;
@@ -228,78 +223,64 @@ quint64 FileTransfer::transferRate() const
     return d->transferRate;
 }
 
-void FileTransfer::sendOffer()
+bool FileTransfer::initializeOffer()
 {
-    if (!d->isOutgoing || d->state > Offered) {
-        Q_ASSERT_X(false, "FileTransfer::sendOffer", "Transfer is not in a valid state to offer");
-        d->setError(QStringLiteral("Transfer is not in a valid state to offer"));
-        return;
+    if (d->isOutbound) {
+        BUG() << "Tried to initialize an offer on an outbound file transfer";
+        return false;
     }
 
-    if (!d->localDevice) {
-        d->setError(QStringLiteral("No local file for transfer"));
-        return;
-    }
+    if (d->state != Unknown)
+        return false;
 
-    if (d->fileName.isEmpty() || d->fileSize < 1) {
-        d->setError(QStringLiteral("Transfer does not have valid file name and size"));
-        return;
-    }
-
-    if (!d->identifier) {
-        // XXX test for collision
-        while (!d->identifier)
-            d->identifier = SecureRNG::randomInt(UINT_MAX);
-    }
-
-    qWarning() << "XXX Should offer transfer" << d->identifier << d->fileName << d->fileSize;
-    d->setState(FileTransfer::Offered);
-}
-
-void FileTransfer::cancel()
-{
-    if (d->state == Cancelled)
-        return;
-
-    // XXX what else needs to happen here?
-    qWarning() << "XXX Should send cancel" << d->identifier;
-    d->setState(Cancelled);
+    // XXX Do we need separate states for "initialized but not started" and "offering"?
+    d->setState(Offer);
+    return true;
 }
 
 void FileTransfer::start()
 {
-    if (d->isOutgoing || (d->state != Offered && d->state != Failed)) {
-        Q_ASSERT_X(false, "FileTransfer::start", "Transfer is not in a valid state to start");
-        d->setError(QStringLiteral("Transfer is not in a valid state to start"));
-        return;
-    }
-
     if (!d->localDevice) {
-        d->setError(QStringLiteral("No local file for transfer"));
+        BUG() << "Tried to start a" << (isOutbound() ? "outbound" : "inbound") << "file transfer without a local device";
+        return;
+   }
+
+    if (d->fileName.isEmpty() || d->fileSize < 1) {
+        BUG() << "Tried to start a" << (isOutbound() ? "outbound" : "inbound") << "file transfer without a filename and size";
         return;
     }
 
-    qWarning() << "XXX Should start transfer" << d->identifier << d->transferredSize;
-    d->setState(Connecting);
+    if (d->isOutbound) {
+        if (d->state == Finished) {
+            BUG() << "Tried to start an outbound file transfer that is already finished";
+            return;
+        }
+
+        if (!d->identifier) {
+            // XXX test for collision
+            while (!d->identifier)
+                d->identifier = SecureRNG::randomInt(UINT_MAX);
+        }
+
+        qWarning() << "XXX Should offer transfer" << d->identifier << d->fileName << d->fileSize;
+        d->setState(Offer);
+    } else {
+        if (d->state != Offer) {
+            BUG() << "Tried to start an inbound file transfer in non-Offer state" << d->state;
+            return;
+        }
+
+        qWarning() << "XXX Should start transfer" << d->identifier << d->transferredSize;
+        d->setState(Active);
+    }
 }
 
-void FileTransfer::setState(State newState)
+void FileTransfer::cancel()
 {
-    d->setState(newState);
-}
-
-void FileTransfer::peerFinished()
-{
-    if (!isOutgoing())
+    if (d->state == Canceled)
         return;
 
-    // XXX what do we need to do other than state?
-    d->setState(Finished);
-}
-
-void FileTransfer::peerCancel()
-{
-    // XXX what do we need to do other than state?
-    d->setState(Cancelled);
+    qWarning() << "XXX Should send cancel" << d->identifier;
+    d->setState(Canceled);
 }
 

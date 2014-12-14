@@ -47,33 +47,31 @@ class FileTransfer : public QObject
     Q_ENUMS(State)
 
     Q_PROPERTY(ContactUser* contact READ contact CONSTANT)
-    Q_PROPERTY(bool isOutgoing READ isOutgoing CONSTANT)
+    Q_PROPERTY(bool isOutbound READ isOutbound CONSTANT)
     Q_PROPERTY(QString fileName READ fileName WRITE setFileName NOTIFY fileNameChanged)
     Q_PROPERTY(qint64 fileSize READ fileSize NOTIFY fileSizeChanged)
     Q_PROPERTY(QUrl localFileUrl READ localFileUrl WRITE setLocalFileUrl NOTIFY localDeviceChanged)
     Q_PROPERTY(bool hasLocalFile READ hasLocalFile NOTIFY localDeviceChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
-    Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorMessageChanged)
     Q_PROPERTY(qint64 transferredSize READ transferredSize NOTIFY transferredSizeChanged)
     Q_PROPERTY(qint64 transferRate READ transferRate)
 
 public:
     enum State
     {
-        Cancelled = -2,
-        Failed = -1,
+        Canceled = -2,
+        Error = -1,
         Unknown,
-        Offered,
-        Connecting,
-        Transferring,
+        Offer,
+        Active,
         Finished
     };
 
-    explicit FileTransfer(ContactUser *contact, bool isOutgoing, QObject *parent);
+    explicit FileTransfer(ContactUser *contact, bool isOutbound, QObject *parent);
     virtual ~FileTransfer();
 
     ContactUser *contact() const;
-    bool isOutgoing() const;
+    bool isOutbound() const;
 
     /* Transmitter-assigned identifier for this transfer
      *
@@ -95,51 +93,49 @@ public:
     bool hasLocalFile() const;
 
     State state() const;
-    QString errorMessage() const;
 
     quint64 transferredSize() const;
     quint64 transferRate() const;
 
-    // Protocol API
-    void peerFinished();
-    void peerCancel();
-
 public slots:
-    /* Offer an outgoing transfer to the contact
+    /* Activate a transfer, either by offering it to the peer or accepting an offer
      *
-     * Only valid for outgoing transfers in a state below Connecting.
-     * Must have a valid fileName, fileSize, and localDevice.
-     */
-    void sendOffer();
-
-    /* Cancel the transfer from either end
+     * For outbound transfers, this function may be used from any state other than
+     * Finished to send an offer to the peer. The transfer will be moved to the Offer
+     * state, and automatically to Active if/when the peer accepts.
      *
-     * Any ongoing activity will stop and the contact will be told to cancel.
-     * A cancelled transfer can be resumed only by the sending peer, by sending a new offer.
-     */
-    void cancel();
-
-    /* Accept a transfer offer and begin negotiating connection
+     * For inbound transfers, this function may be used only in the Offer state.
      *
-     * Only valid for incoming transfers in the Offered and Failed states.
-     * Must have a valid localDevice.
+     * localDevice must be set before calling this function.
      */
     void start();
+
+    /* Initialize an incoming offer
+     *
+     * This function should be called on a new transfer after initializing all
+     * properties for a new incoming offer.
+     */
+    bool initializeOffer();
+
+    /* Cancel the transfer
+     *
+     * May be used by either side to cancel a transfer in the Offer, Active, or Error
+     * states. The sending peer must explicitly send a new offer for the file to restart
+     * the transfer.
+     */
+    void cancel();
 
 signals:
     void fileNameChanged();
     void fileSizeChanged();
     void localDeviceChanged();
     void stateChanged();
-    void errorMessageChanged();
     void transferredSizeChanged();
 
 private:
     FileTransferPrivate *d;
 
     friend class FileTransferManager;
-
-    void setState(State newState);
 };
 
 #endif

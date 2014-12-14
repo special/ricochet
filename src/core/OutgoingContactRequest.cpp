@@ -219,7 +219,7 @@ void OutgoingContactRequest::removeRequest()
     }
 #else
     if (user->connection()) {
-        Channel *channel = user->connection()->findChannel<ContactRequestChannel>();
+        Protocol::Channel *channel = user->connection()->findChannel<Protocol::ContactRequestChannel>();
         if (channel)
             channel->closeChannel();
     }
@@ -254,7 +254,7 @@ void OutgoingContactRequest::reject(bool error, const QString &reason)
     }
 #else
     if (user->connection()) {
-        Channel *channel = user->connection()->findChannel<ContactRequestChannel>();
+        Protocol::Channel *channel = user->connection()->findChannel<Protocol::ContactRequestChannel>();
         if (channel)
             channel->closeChannel();
     }

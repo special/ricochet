@@ -103,20 +103,19 @@ FileTransfer *FileTransferManager::sendFile(ContactUser *user, const QUrl &path)
     transfer->setLocalFilePath(fi.filePath());
 
     d->addTransfer(transfer);
-    transfer->sendOffer();
+    transfer->start();
     return transfer;
 }
 
 bool FileTransferManager::addOfferedTransfer(FileTransfer *transfer)
 {
-    if (!transfer || transfer->state() != FileTransfer::Unknown || transfer->isOutgoing())
+    if (!transfer || transfer->state() != FileTransfer::Unknown || transfer->isOutbound())
         return false;
 
     if (findTransfer(transfer->contact(), transfer->identifier()))
         return false;
 
     d->addTransfer(transfer);
-    transfer->setState(FileTransfer::Offered);
-    return true;
+    return transfer->initializeOffer();
 }
 

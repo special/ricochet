@@ -34,6 +34,7 @@
 #include "FileTransfer.h"
 #include "ContactUser.h"
 #include <QFileInfo>
+#include <QDebug>
 
 FileTransferManager *fileTransferManager = 0;
 

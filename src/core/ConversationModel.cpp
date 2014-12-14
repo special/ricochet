@@ -325,7 +325,7 @@ void ConversationModel::fileTransferAdded(FileTransfer *transfer)
 
     qDebug() << transfer;
     beginInsertRows(QModelIndex(), 0, 1); // XXX
-    MessageData message(QString(), QDateTime::currentDateTime(), 0, transfer->isOutgoing() ? Delivered : Received);
+    MessageData message(QString(), QDateTime::currentDateTime(), 0, transfer->isOutbound() ? Delivered : Received);
     message.transfer = transfer;
     messages.insert(0, message);
     // XXX

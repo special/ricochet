@@ -24,14 +24,16 @@ Ricochet is available for Windows, OS X (10.7 or later), and as a generic Linux 
 
 All releases and signatures are also available at https://ricochet.im/releases/.
 
-Binaries are PGP signed by `9032 CAE4 CBFA 933A 5A21 45D5 FF97 C53F 183C 045D`.
+Binaries are PGP signed by [9032 CAE4 CBFA 933A 5A21 45D5 FF97 C53F 183C 045D](https://ricochet.im/john-brooks.asc)
 
 ### Building from source
 See [BUILDING](https://github.com/ricochet-im/ricochet/blob/master/BUILDING.md) for Linux, OS X, and Windows build instructions.
 
 ### Other
-Bugs can be reported on the [issue tracker](https://github.com/ricochet-im/ricochet/issues). Translations can be contributed on [Transifex](https://www.transifex.com/projects/p/ricochet/).
+Bugs can be reported on the [issue tracker](https://github.com/ricochet-im/ricochet/issues). Translations can be contributed on [Transifex](https://www.transifex.com/projects/p/ricochet/).  You can contact me at `ricochet:rs7ce36jsj24ogfw` or `john.brooks@dereferenced.net` ([PGP](https://ricochet.im/john-brooks.asc)).
 
-You can contact me at `ricochet:rs7ce36jsj24ogfw` or `john.brooks@dereferenced.net`.
+Ricochet exists thanks to generous work by [the authors](https://github.com/ricochet-im/ricochet/blob/master/AUTHORS.md), including translators and many people who have offered their support.
 
-You should support [The Tor Project](https://www.torproject.org/donate/donate.html.en), [EFF](https://www.eff.org/), and [run a Tor relay](https://www.torproject.org/docs/tor-relay-debian.html.en).
+Special thanks goes to [invisible.im](http://invisible.im), and to [Blueprint for Free Speech](http://blueprintforfreespeech.net/), a community organization promoting freedom of expression in part through their sponsorship and support of Ricochet.
+
+You should support [The Tor Project](https://www.torproject.org/donate/donate.html.en), [EFF](https://www.eff.org/), [Blueprint for Free Speech](http://blueprintforfreespeech.net/), and [run a Tor relay](https://www.torproject.org/docs/tor-relay-debian.html.en).

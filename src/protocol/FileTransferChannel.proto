@@ -1,0 +1,49 @@
+// im.ricochet.file-transfer
+package Protocol.Data.FileTransfer;
+import "ControlChannel.proto";
+
+// A channel for the offer and transfer of a single file.
+//
+// The channel must be initialized by its creator with a FileOffer attached to
+// the OpenChannel message. The receiving peer should accept the channel if this
+// data is valid and he is willing to consider the transfer. Note that accepting
+// the channel does not imply acceptance of the file. The recipient accepts the
+// file by sending a TransferStart message later.
+//
+// At any time, either peer may send a TransferCancel message to abort the transfer.
+// After this message, a new offer is required to restart. The channel should be
+// closed after a cancel.
+//
+// If the recipient of a FileOffer wishes to accept it, they send a TransferStart
+// message, and should begin receiving FileData.
+//
+// XXX clean finish
+// XXX Latency is worrying, e.g. for will buffer a shitload of data and we want to send a message..
+// XXX We need a way to reliably recognize offers of the same file, for resume
+
+message FileOffer {
+    optional string file_name = 1;
+    optional uint64 file_size = 2;
+}
+
+extend Control.OpenChannel {
+    optional FileOffer file_offer = 300;
+}
+
+message Packet {
+    optional FileData file_data = 1;
+    optional TransferStart transfer_start = 2;
+    optional TransferCancel transfer_cancel = 4;
+}
+
+message FileData {
+    required bytes data = 1;
+}
+
+message TransferStart {
+    optional uint64 start_offset = 1;          // Byte offset in file, default 0
+}
+
+message TransferCancel {
+}
+

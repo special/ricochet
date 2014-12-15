@@ -1,0 +1,53 @@
+// im.ricochet.file-transfer
+package Protocol.Data.FileTransfer;
+import "ControlChannel.proto";
+
+// Offer and manage the transfer of a single file
+//
+// The channel is created with a FileOffer attached to the OpenChannel message.
+// The recipient should allow the channel if the offer is valid and could be
+// accepted; opening the channel is not the same as accepting or starting the
+// transfer.
+//
+// The recipient accepts and starts the transfer by sending TransferStart, and
+// creates a FileTransferDataChannel with the same transfer_id. The data channel
+// _may_ be on a different underlying connection, which is recommended for larger
+// files.
+//
+// Either peer may cancel the transfer at any time with a TransferCancel message
+// After cancelling, the channel must be closed. The sender may try to resume a
+// cancelled transfer by making another offer using the same transfer_id, but the
+// recipient is not required to handle this differently from a new offer.
+//
+// When the recipient has the entire file, they must send a TransferFinished
+// message and close the channel.
+//
+// If the channel is closed unexpectedly (including by loss of the connection),
+// it is treated as if a generic error arrived in a TransferCancel message.
+
+message FileOffer {
+    optional string file_name = 1;
+    optional uint64 file_size = 2;
+    optional bytes transfer_id = 3; // 16 bytes
+}
+
+extend Control.OpenChannel {
+    optional FileOffer file_offer = 300;
+}
+
+message Packet {
+    optional TransferStart start = 1;
+    optional TransferFinished finished = 2;
+    optional TransferCancel cancel = 3;
+}
+
+message TransferStart {
+}
+
+message TransferFinished {
+}
+
+message TransferCancel {
+    optional bool by_user = 1;
+}
+

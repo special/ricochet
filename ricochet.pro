@@ -211,7 +211,8 @@ SOURCES += src/protocol/Channel.cpp \
     src/protocol/OutboundConnector.cpp \
     src/protocol/AuthHiddenServiceChannel.cpp \
     src/protocol/ChatChannel.cpp \
-    src/protocol/ContactRequestChannel.cpp
+    src/protocol/ContactRequestChannel.cpp \
+    src/protocol/FileTransferChannel.cpp
 
 HEADERS += src/protocol/Channel.h \
     src/protocol/Channel_p.h \
@@ -221,13 +222,15 @@ HEADERS += src/protocol/Channel.h \
     src/protocol/OutboundConnector.h \
     src/protocol/AuthHiddenServiceChannel.h \
     src/protocol/ChatChannel.h \
-    src/protocol/ContactRequestChannel.h
+    src/protocol/ContactRequestChannel.h \
+    src/protocol/FileTransferChannel.h
 
 include(protobuf.pri)
 PROTOS += src/protocol/ControlChannel.proto \
     src/protocol/AuthHiddenService.proto \
     src/protocol/ChatChannel.proto \
-    src/protocol/ContactRequestChannel.proto
+    src/protocol/ContactRequestChannel.proto \
+    src/protocol/FileTransferChannel.proto
 
 # QML
 RESOURCES += src/ui/qml/qml.qrc \

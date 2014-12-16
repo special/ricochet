@@ -35,30 +35,51 @@
 
 #include "Channel.h"
 #include "FileTransferChannel.pb.h"
+#include <QPointer>
+
+class QIODevice;
 
 namespace Protocol
 {
+
+class FileTransferChannelPrivate;
 
 class FileTransferChannel : public Channel
 {
     Q_OBJECT
     Q_DISABLE_COPY(FileTransferChannel)
+    Q_DECLARE_PRIVATE(FileTransferChannel)
 
 public:
     static const int FilenameMaxCharacters = 500;
 
     explicit FileTransferChannel(Direction direction, Connection *connection);
 
+    QString filename() const;
+    void setFilename(const QString &filename);
+
+    quint64 filesize() const;
+    void setFilesize(quint64 size);
+
+    QIODevice *localDevice();
+    void setLocalDevice(QIODevice *device);
+
+public slots:
+    void start();
+    void cancel();
+
 signals:
+    void started();
+    void canceled();
 
 protected:
     virtual bool allowInboundChannelRequest(const Data::Control::OpenChannel *request, Data::Control::ChannelResult *result);
     virtual bool allowOutboundChannelRequest(Data::Control::OpenChannel *request);
     virtual void receivePacket(const QByteArray &packet);
 
-private:
-    QString filename;
-    quint64 filesize;
+    void handleFileData(const Data::FileTransfer::FileData &message);
+    void handleTransferStart(const Data::FileTransfer::TransferStart &message);
+    void handleTransferCancel(const Data::FileTransfer::TransferCancel &message);
 };
 
 }

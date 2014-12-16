@@ -34,17 +34,37 @@
 #include "Channel_p.h"
 #include "Connection.h"
 #include "utils/Useful.h"
+#include "utils/StringUtil.h"
+#include <QIODevice>
 
 using namespace Protocol;
 
-FileTransferChannel::FileTransferChannel(Direction direction, Connection *connection)
-    : Channel(QStringLiteral("im.ricochet.file-transfer"), direction, connection)
-    , filesize(0)
+namespace Protocol {
+
+class FileTransferChannelPrivate : public ChannelPrivate
+{
+public:
+    QString filename;
+    quint64 filesize;
+    QPointer<QIODevice> localDevice;
+
+    FileTransferChannelPrivate(Channel *q, Channel::Direction direction, Connection *conn)
+        : ChannelPrivate(q, QStringLiteral("im.ricochet.file-transfer"), direction, conn)
+        , filesize(0)
+    {
+    }
+};
+
+}
+
+FileTransferChannel::FileTransferChannel(Direction dir, Connection *conn)
+    : Channel(new FileTransferChannelPrivate(this, dir, conn))
 {
 }
 
 bool FileTransferChannel::allowInboundChannelRequest(const Data::Control::OpenChannel *request, Data::Control::ChannelResult *result)
 {
+    Q_D(FileTransferChannel);
     if (connection()->purpose() != Connection::Purpose::KnownContact) {
         qDebug() << "Rejecting request for" << type() << "channel from connection with purpose" << int(connection()->purpose());
         result->set_common_error(Data::Control::ChannelResult::UnauthorizedError);
@@ -58,8 +78,8 @@ bool FileTransferChannel::allowInboundChannelRequest(const Data::Control::OpenCh
 
     Data::FileTransfer::FileOffer offer = request->GetExtension(Data::FileTransfer::file_offer);
 
-    filesize = offer.file_size();
-    if (filesize == 0) {
+    d->filesize = offer.file_size();
+    if (d->filesize == 0) {
         qDebug() << "Rejecting request for" << type() << "of empty file";
         return false;
     }
@@ -69,8 +89,8 @@ bool FileTransferChannel::allowInboundChannelRequest(const Data::Control::OpenCh
         qDebug() << "Rejecting request for" << type() << "with excessive filename of" << rawFilename.size() << "characters";
         return false;
     }
-    filename = sanitizedFileName(rawFilename);
-    if (filename.isEmpty()) {
+    d->filename = sanitizedFileName(rawFilename);
+    if (d->filename.isEmpty()) {
         qDebug() << "Rejecting request for" << type() << "with empty filename";
         return false;
     }
@@ -81,13 +101,28 @@ bool FileTransferChannel::allowInboundChannelRequest(const Data::Control::OpenCh
 bool FileTransferChannel::allowOutboundChannelRequest(Data::Control::OpenChannel *request)
 {
     Q_UNUSED(request);
+    Q_D(FileTransferChannel);
 
     if (connection()->purpose() != Connection::Purpose::KnownContact) {
         BUG() << "Rejecting outbound request for" << type() << "channel for connection with unexpected purpose" << int(connection()->purpose());
         return false;
     }
 
+    if (d->filesize == 0 || d->filename.isEmpty()) {
+        BUG() << "Rejecting outbound request for" << type() << "channel without file data";
+        return false;
+    }
+
+    if (d->localDevice.isNull() || !d->localDevice->isOpen()) {
+        BUG() << "Rejecting outbound request for" << type() << "channel without opened local device";
+        return false;
+    }
+
     return true;
+}
+
+void FileTransferChannel::cancel()
+{
 }
 
 void FileTransferChannel::receivePacket(const QByteArray &packet)
@@ -99,11 +134,60 @@ void FileTransferChannel::receivePacket(const QByteArray &packet)
     }
 
     if (message.has_file_data()) {
+        handleFileData(message.file_data());
     } else if (message.has_transfer_start()) {
+        handleTransferStart(message.transfer_start());
     } else if (message.has_transfer_cancel()) {
+        handleTransferCancel(message.transfer_cancel());
     } else {
         qWarning() << "Unrecognized message on" << type();
         closeChannel();
     }
+}
+
+void FileTransferChannel::start()
+{
+    Q_D(FileTransferChannel);
+    if (direction() != Inbound) {
+        BUG() << "Cannot start an outbound file transfer channel";
+        return;
+    }
+
+    if (d->localDevice.isNull() || !d->localDevice->isOpen()) {
+        BUG() << "Cannot start an inbound file transfer without a local device";
+        return;
+    }
+
+    QScopedPointer<Data::FileTransfer::TransferStart> message(new Data::FileTransfer::TransferStart);
+    Data::FileTransfer::Packet packet;
+    packet.set_allocated_transfer_start(message.take());
+    sendMessage(packet);
+}
+
+void FileTransferChannel::handleTransferStart(const Data::FileTransfer::TransferStart &message)
+{
+    if (direction() != Outbound) {
+        closeChannel();
+        return;
+    }
+
+    // XXX check state
+
+    if (d->localDevice.isNull() || !d->localDevice.isOpen()) {
+        BUG() << "Received transfer start for outbound transfer, but local device has disappeared";
+        // XXX error, not user cancel
+        cancel();
+        return;
+    }
+
+    emit started();
+}
+
+void FileTransferChannel::handleTransferCancel(const Data::FileTransfer::TransferCancel &message)
+{
+}
+
+void FileTransferChannel::handleFileData(const Data::FileTransfer::FileData &message)
+{
 }
 

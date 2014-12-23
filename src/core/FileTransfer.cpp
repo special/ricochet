@@ -31,9 +31,11 @@
  */
 
 #include "FileTransfer.h"
+#include "ContactUser.h"
 #include "utils/SecureRNG.h"
 #include "utils/StringUtil.h"
 #include "utils/Useful.h"
+#include "protocol/FileTransferChannel.h"
 #include <QFile>
 #include <QFileInfo>
 #include <QDebug>
@@ -52,6 +54,7 @@ public:
     quint64 fileSize;
     quint64 transferredSize;
     quint64 transferRate;
+    QPointer<Protocol::FileTransferChannel> channel;
 
     FileTransferPrivate(FileTransfer *qptr, ContactUser *c, bool out)
         : q(qptr)
@@ -69,6 +72,10 @@ public:
     ~FileTransferPrivate()
     {
         delete localDevice;
+        if (!channel.isNull() && channel->isOpened()) {
+            BUG() << "Channel is still open when destroying FileTransfer";
+            channel->closeChannel();
+        }
     }
 
     void setState(FileTransfer::State state);
@@ -88,6 +95,9 @@ void FileTransferPrivate::setState(FileTransfer::State newState)
 {
     if (state == newState)
         return;
+
+    if (newState == FileTransfer::Active && channel.isNull())
+        BUG() << "File transfer moved to active state, but has no attached protocol channel";
 
     qDebug() << this << "State" << state << "->" << newState;
     state = newState;
@@ -223,15 +233,33 @@ quint64 FileTransfer::transferRate() const
     return d->transferRate;
 }
 
-bool FileTransfer::initializeOffer()
+bool FileTransfer::setInboundChannel(Protocol::FileTransferChannel *channel)
 {
     if (d->isOutbound) {
         BUG() << "Tried to initialize an offer on an outbound file transfer";
         return false;
     }
 
-    if (d->state != Unknown)
+    if (d->state != Unknown || !d->channel.isNull()) {
+        BUG() << "Tried to set an inbound channel on a file transfer in state" << d->state;
         return false;
+    }
+
+    if (!channel || channel->direction() != Protocol::Channel::Inbound || !channel->isOpened()) {
+        BUG() << "Tried to initialize an offer with a channel in an invalid state";
+        return false;
+    }
+
+    setFileName(channel->fileName());
+    d->fileSize = channel->fileSize();
+
+    if (d->fileName.isEmpty() || d->fileSize < 1) {
+        // These should've been filtered out by FileTransferChannel
+        BUG() << "Received an inbound file transfer offer without a valid name and size";
+        return false;
+    }
+
+    d->channel = channel;
 
     // XXX Do we need separate states for "initialized but not started" and "offering"?
     d->setState(Offer);
@@ -256,22 +284,48 @@ void FileTransfer::start()
             return;
         }
 
+        // XXX more state/data checks
+
         if (!d->identifier) {
             // XXX test for collision
             while (!d->identifier)
                 d->identifier = SecureRNG::randomInt(UINT_MAX);
         }
 
-        qWarning() << "XXX Should offer transfer" << d->identifier << d->fileName << d->fileSize;
         d->setState(Offer);
+
+        if (!d->channel) {
+            if (contact() && contact()->isConnected()) {
+                d->channel = new Protocol::FileTransferChannel(Protocol::Channel::Outbound, contact()->connection());
+                d->channel->setFileName(fileName());
+                d->channel->setLocalDevice(d->localDevice);
+                if (d->channel->fileSize() != fileSize())
+                    BUG() << "File size on channel" << d->channel->fileSize() << "doesn't match transfer" << fileSize();
+                // XXX signals
+                if (!d->channel->openChannel()) {
+                    // XXX what else
+                    d->setState(Error);
+                    return;
+                }
+            }
+        }
     } else {
         if (d->state != Offer) {
             BUG() << "Tried to start an inbound file transfer in non-Offer state" << d->state;
             return;
         }
 
-        qWarning() << "XXX Should start transfer" << d->identifier << d->transferredSize;
+        if (d->channel.isNull()) {
+            qWarning() << "Tried to start an inbound file transfer with no channel";
+            // XXX What is the appropriate state for an offer with no active channel?
+            d->setState(Error);
+            return;
+        }
+
         d->setState(Active);
+
+        d->channel->setLocalDevice(d->localDevice);
+        d->channel->start();
     }
 }
 

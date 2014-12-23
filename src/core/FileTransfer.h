@@ -39,6 +39,10 @@
 class ContactUser;
 class QIODevice;
 
+namespace Protocol {
+    class FileTransferChannel;
+}
+
 class FileTransferPrivate;
 class FileTransfer : public QObject
 {
@@ -92,6 +96,8 @@ public:
     void setLocalFileUrl(const QUrl &fileUrl);
     bool hasLocalFile() const;
 
+    bool setInboundChannel(Protocol::FileTransferChannel *channel);
+
     State state() const;
 
     quint64 transferredSize() const;
@@ -109,13 +115,6 @@ public slots:
      * localDevice must be set before calling this function.
      */
     void start();
-
-    /* Initialize an incoming offer
-     *
-     * This function should be called on a new transfer after initializing all
-     * properties for a new incoming offer.
-     */
-    bool initializeOffer();
 
     /* Cancel the transfer
      *

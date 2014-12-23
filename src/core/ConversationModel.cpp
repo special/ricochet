@@ -33,6 +33,7 @@
 #include "ConversationModel.h"
 #include "core/FileTransfer.h"
 #include "core/FileTransferManager.h"
+#include "core/UserIdentity.h"
 #include <QDebug>
 #ifdef PROTOCOL_NEW
 # include "protocol/Connection.h"
@@ -49,7 +50,6 @@ ConversationModel::ConversationModel(QObject *parent)
 #endif
     , m_unreadCount(0)
 {
-    connect(fileTransferManager, SIGNAL(transferAdded(FileTransfer*)), SLOT(fileTransferAdded(FileTransfer*)));
 }
 
 void ConversationModel::setContact(ContactUser *contact)
@@ -94,6 +94,7 @@ void ConversationModel::setContact(ContactUser *contact)
 #endif
         connect(m_contact, &ContactUser::statusChanged,
                 this, &ConversationModel::onContactStatusChanged);
+        connect(&m_contact->identity->fileTransfers, &FileTransferManager::transferAdded, this, &ConversationModel::fileTransferAdded);
     }
 
     endResetModel();

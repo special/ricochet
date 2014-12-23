@@ -52,6 +52,7 @@ UserIdentity::UserIdentity(int id, QObject *parent)
     : QObject(parent)
     , uniqueID(id)
     , contacts(this)
+    , fileTransfers(this)
     , m_settings(0)
     , m_hiddenService(0)
 #ifdef PROTOCOL_NEW

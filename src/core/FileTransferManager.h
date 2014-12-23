@@ -38,6 +38,7 @@
 #include <QUrl>
 
 class ContactUser;
+class UserIdentity;
 
 class FileTransferManagerPrivate;
 class FileTransferManager : public QObject
@@ -46,7 +47,7 @@ class FileTransferManager : public QObject
     Q_DISABLE_COPY(FileTransferManager)
 
 public:
-    explicit FileTransferManager(QObject *parent = 0);
+    explicit FileTransferManager(UserIdentity *identity);
     virtual ~FileTransferManager();
 
     QList<FileTransfer*> transfers() const;
@@ -63,8 +64,6 @@ private:
     friend class FileTransferManagerPrivate;
     FileTransferManagerPrivate *d;
 };
-
-extern FileTransferManager *fileTransferManager;
 
 #endif
 

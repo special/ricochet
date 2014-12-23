@@ -33,28 +33,30 @@
 #include "FileTransferManager.h"
 #include "FileTransfer.h"
 #include "ContactUser.h"
+#include "UserIdentity.h"
 #include <QFileInfo>
 #include <QDebug>
-
-FileTransferManager *fileTransferManager = 0;
 
 class FileTransferManagerPrivate
 {
 public:
     FileTransferManager *q;
     QList<FileTransfer*> transfers;
+    UserIdentity *identity;
 
     FileTransferManagerPrivate(FileTransferManager *qq)
         : q(qq)
+        , identity(0)
     {
     }
 
     void addTransfer(FileTransfer *t);
 };
 
-FileTransferManager::FileTransferManager(QObject *parent)
-    : QObject(parent), d(new FileTransferManagerPrivate(this))
+FileTransferManager::FileTransferManager(UserIdentity *identity)
+    : QObject(identity), d(new FileTransferManagerPrivate(this))
 {
+    d->identity = identity;
 }
 
 FileTransferManager::~FileTransferManager()

@@ -88,8 +88,9 @@ MainWindow::MainWindow(QObject *parent)
     qRegisterMetaType<PendingOperation*>();
 
     Q_ASSERT(!identityManager->identities().isEmpty());
-    qml->rootContext()->setContextProperty(QLatin1String("userIdentity"), identityManager->identities()[0]);
-    qml->rootContext()->setContextProperty(QLatin1String("fileTransferManager"), fileTransferManager);
+    UserIdentity *identity = identityManager->identities()[0];
+    qml->rootContext()->setContextProperty(QLatin1String("userIdentity"), identity);
+    qml->rootContext()->setContextProperty(QLatin1String("fileTransferManager"), &identity->fileTransfers);
     qml->rootContext()->setContextProperty(QLatin1String("torControl"), torControl);
     qml->rootContext()->setContextProperty(QLatin1String("torInstance"), Tor::TorManager::instance());
     qml->rootContext()->setContextProperty(QLatin1String("uiMain"), this);

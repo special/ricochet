@@ -34,6 +34,7 @@
 #define USERIDENTITY_H
 
 #include "ContactsManager.h"
+#include "FileTransferManager.h"
 #include <QObject>
 #include <QMetaType>
 
@@ -80,6 +81,7 @@ class UserIdentity : public QObject
 public:
     const int uniqueID;
     ContactsManager contacts;
+    FileTransferManager fileTransfers;
 
     explicit UserIdentity(int uniqueID, QObject *parent = 0);
 

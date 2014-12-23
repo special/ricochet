@@ -86,7 +86,6 @@ int main(int argc, char *argv[])
     torControl = torManager->control();
     torManager->start();
 
-    fileTransferManager = new FileTransferManager;
     identityManager = new IdentityManager;
 
     /* Window */

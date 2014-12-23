@@ -194,7 +194,9 @@ void FileTransfer::setLocalFilePath(const QString &filePath)
     if (localFilePath() == fi.absoluteFilePath())
         return;
 
+    // XXX error handling
     QFile *file = new QFile(fi.absoluteFilePath(), this);
+    file->open(isOutbound() ? QIODevice::ReadOnly : QIODevice::ReadWrite);
     setLocalDevice(file);
 }
 

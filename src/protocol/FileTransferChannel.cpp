@@ -62,6 +62,50 @@ FileTransferChannel::FileTransferChannel(Direction dir, Connection *conn)
 {
 }
 
+QString FileTransferChannel::fileName() const
+{
+    Q_D(const FileTransferChannel);
+    return d->filename;
+}
+
+void FileTransferChannel::setFileName(const QString &name)
+{
+    Q_D(FileTransferChannel);
+    if (direction() != Outbound) {
+        BUG() << "Setting filename on an inbound file transfer channel doesn't make sense";
+        return;
+    }
+
+    d->filename = name;
+}
+
+quint64 FileTransferChannel::fileSize() const
+{
+    Q_D(const FileTransferChannel);
+    return d->filesize;
+}
+
+QIODevice *FileTransferChannel::localDevice() const
+{
+    Q_D(const FileTransferChannel);
+    return d->localDevice;
+}
+
+void FileTransferChannel::setLocalDevice(QIODevice *device)
+{
+    Q_D(FileTransferChannel);
+    if (d->localDevice == device)
+        return;
+
+    if (!d->localDevice.isNull() && isOpened()) {
+        BUG() << "Can't change local device on an opened file transfer channel";
+        return;
+    }
+
+    d->localDevice = device;
+    d->filesize = device->size();
+}
+
 bool FileTransferChannel::allowInboundChannelRequest(const Data::Control::OpenChannel *request, Data::Control::ChannelResult *result)
 {
     Q_D(FileTransferChannel);
@@ -100,7 +144,6 @@ bool FileTransferChannel::allowInboundChannelRequest(const Data::Control::OpenCh
 
 bool FileTransferChannel::allowOutboundChannelRequest(Data::Control::OpenChannel *request)
 {
-    Q_UNUSED(request);
     Q_D(FileTransferChannel);
 
     if (connection()->purpose() != Connection::Purpose::KnownContact) {
@@ -118,11 +161,16 @@ bool FileTransferChannel::allowOutboundChannelRequest(Data::Control::OpenChannel
         return false;
     }
 
+    QScopedPointer<Data::FileTransfer::FileOffer> offer(new Data::FileTransfer::FileOffer);
+    offer->set_file_name(d->filename.toStdString());
+    offer->set_file_size(d->filesize);
+    request->SetAllocatedExtension(Data::FileTransfer::file_offer, offer.take());
     return true;
 }
 
 void FileTransferChannel::cancel()
 {
+    BUG() << "Not implemented";
 }
 
 void FileTransferChannel::receivePacket(const QByteArray &packet)
@@ -158,6 +206,7 @@ void FileTransferChannel::start()
         return;
     }
 
+    // XXX check state
     QScopedPointer<Data::FileTransfer::TransferStart> message(new Data::FileTransfer::TransferStart);
     Data::FileTransfer::Packet packet;
     packet.set_allocated_transfer_start(message.take());
@@ -166,6 +215,7 @@ void FileTransferChannel::start()
 
 void FileTransferChannel::handleTransferStart(const Data::FileTransfer::TransferStart &message)
 {
+    Q_D(FileTransferChannel);
     if (direction() != Outbound) {
         closeChannel();
         return;
@@ -185,6 +235,7 @@ void FileTransferChannel::handleTransferStart(const Data::FileTransfer::Transfer
 
 void FileTransferChannel::handleTransferCancel(const Data::FileTransfer::TransferCancel &message)
 {
+    BUG() << "Not implemented";
 }
 
 void FileTransferChannel::handleFileData(const Data::FileTransfer::FileData &message)

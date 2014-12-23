@@ -55,14 +55,11 @@ public:
 
     explicit FileTransferChannel(Direction direction, Connection *connection);
 
-    QString filename() const;
-    void setFilename(const QString &filename);
-
-    quint64 filesize() const;
-    void setFilesize(quint64 size);
-
-    QIODevice *localDevice();
+    QString fileName() const;
+    void setFileName(const QString &filename);
+    QIODevice *localDevice() const;
     void setLocalDevice(QIODevice *device);
+    quint64 fileSize() const;
 
 public slots:
     void start();

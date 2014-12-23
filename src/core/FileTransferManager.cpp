@@ -34,6 +34,9 @@
 #include "FileTransfer.h"
 #include "ContactUser.h"
 #include "UserIdentity.h"
+#include "protocol/FileTransferChannel.h"
+#include "protocol/Connection.h"
+#include "utils/Useful.h"
 #include <QFileInfo>
 #include <QDebug>
 
@@ -57,6 +60,47 @@ FileTransferManager::FileTransferManager(UserIdentity *identity)
     : QObject(identity), d(new FileTransferManagerPrivate(this))
 {
     d->identity = identity;
+
+    auto attachChannel = [this](Protocol::Channel *channel) {
+        if (Protocol::FileTransferChannel *transferChannel = qobject_cast<Protocol::FileTransferChannel*>(channel)) {
+            if (transferChannel->direction() == Protocol::Channel::Inbound) {
+                ContactUser *user = qobject_cast<ContactUser*>(channel->connection()->parent());
+                if (!user) {
+                    BUG() << "Called to handle an inbound FileTransferChannel on a connection of purpose" << int(channel->connection()->purpose()) << "with parent" << channel->connection()->parent();
+                    return;
+                }
+
+                qDebug() << "Creating file transfer for inbound channel" << transferChannel << transferChannel->fileName() << transferChannel->fileSize();
+                FileTransfer *transfer = new FileTransfer(user, false, this);
+                if (!transfer->setInboundChannel(transferChannel)) {
+                    qWarning() << "Failed creating transfer from inbound transfer channel; destroying channel";
+                    delete transfer;
+                    transferChannel->closeChannel();
+                    return;
+                }
+
+                d->addTransfer(transfer);
+            }
+        }
+    };
+
+    auto attachConnection = [this,attachChannel](Protocol::Connection *connection) {
+        if (connection) {
+            connect(connection, &Protocol::Connection::channelOpened, this, attachChannel);
+            foreach (auto channel, connection->findChannels<Protocol::FileTransferChannel>())
+                attachChannel(channel);
+        }
+    };
+
+    auto attachContact = [this,attachConnection](ContactUser *user) {
+        connect(user, &ContactUser::connectionChanged, this, attachConnection);
+        if (user->connection())
+            attachConnection(user->connection());
+    };
+
+    connect(&identity->contacts, &ContactsManager::contactAdded, this, attachContact);
+    foreach (ContactUser *user, identity->contacts.contacts())
+        attachContact(user);
 }
 
 FileTransferManager::~FileTransferManager()
@@ -107,17 +151,5 @@ FileTransfer *FileTransferManager::sendFile(ContactUser *user, const QUrl &path)
     d->addTransfer(transfer);
     transfer->start();
     return transfer;
-}
-
-bool FileTransferManager::addOfferedTransfer(FileTransfer *transfer)
-{
-    if (!transfer || transfer->state() != FileTransfer::Unknown || transfer->isOutbound())
-        return false;
-
-    if (findTransfer(transfer->contact(), transfer->identifier()))
-        return false;
-
-    d->addTransfer(transfer);
-    return transfer->initializeOffer();
 }
 

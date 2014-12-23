@@ -54,7 +54,6 @@ public:
     FileTransfer *findTransfer(ContactUser *user, quint32 identifier);
 
     Q_INVOKABLE FileTransfer *sendFile(ContactUser *user, const QUrl &path);
-    bool addOfferedTransfer(FileTransfer *transfer);
 
 signals:
     void transferAdded(FileTransfer *transfer);

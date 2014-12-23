@@ -36,6 +36,7 @@
 #include "utils/Useful.h"
 #include "utils/StringUtil.h"
 #include <QIODevice>
+#include <QTimer>
 
 using namespace Protocol;
 
@@ -43,16 +44,22 @@ namespace Protocol {
 
 class FileTransferChannelPrivate : public ChannelPrivate
 {
+    Q_DECLARE_PUBLIC(FileTransferChannel)
+
 public:
     QString filename;
     quint64 filesize;
     QPointer<QIODevice> localDevice;
+    QTimer sendTimer;
 
     FileTransferChannelPrivate(Channel *q, Channel::Direction direction, Connection *conn)
         : ChannelPrivate(q, QStringLiteral("im.ricochet.file-transfer"), direction, conn)
         , filesize(0)
     {
+        connect(&sendTimer, &QTimer::timeout, this, &FileTransferChannelPrivate::sendDataPacket);
     }
+
+    void sendDataPacket();
 };
 
 }
@@ -223,14 +230,11 @@ void FileTransferChannel::handleTransferStart(const Data::FileTransfer::Transfer
 
     // XXX check state
 
-    if (d->localDevice.isNull() || !d->localDevice.isOpen()) {
-        BUG() << "Received transfer start for outbound transfer, but local device has disappeared";
-        // XXX error, not user cancel
-        cancel();
-        return;
-    }
-
     emit started();
+
+    // XXX oh god this is a bad idea.
+    d->sendTimer.start(500);
+    d->sendDataPacket();
 }
 
 void FileTransferChannel::handleTransferCancel(const Data::FileTransfer::TransferCancel &message)
@@ -238,7 +242,76 @@ void FileTransferChannel::handleTransferCancel(const Data::FileTransfer::Transfe
     BUG() << "Not implemented";
 }
 
+void FileTransferChannelPrivate::sendDataPacket()
+{
+    Q_Q(FileTransferChannel);
+    if (q->direction() != Channel::Outbound) {
+        BUG() << "Sending data on an inbound file transfer";
+        return;
+    }
+
+    if (localDevice.isNull() || !localDevice->isOpen()) {
+        BUG() << "Trying to send data for outbound transfer, but local device has disappeared";
+        // XXX error, not user cancel
+        q->cancel();
+        return;
+    }
+
+    // XXX check state
+    // XXX stack, uncleared. Maybe permanent heap alloc?
+    char data[10240]; // XXX constant
+    qint64 rd = localDevice->read(data, sizeof(data));
+    if (rd < 0) {
+        qDebug() << "Read error while sending file:" << localDevice->errorString();
+        // XXX error, not user cancel
+        q->cancel();
+        return;
+    }
+    if (rd == 0) {
+        qDebug() << "End of send file";
+        // XXX something
+        return;
+    }
+
+    QScopedPointer<Data::FileTransfer::FileData> message(new Data::FileTransfer::FileData);
+    message->set_data(data, rd);
+    Data::FileTransfer::Packet packet;
+    packet.set_allocated_file_data(message.take());
+    q->sendMessage(packet);
+}
+
 void FileTransferChannel::handleFileData(const Data::FileTransfer::FileData &message)
 {
+    Q_D(FileTransferChannel);
+    if (direction() != Inbound) {
+        closeChannel();
+        return;
+    }
+
+    // XXX check state
+    if (d->localDevice.isNull() || !d->localDevice->isOpen()) {
+        BUG() << "Received data for an inbound transfer, but local device has disappeared";
+        // XXX error, not user cancel
+        cancel();
+        return;
+    }
+
+    std::string data = message.data();
+    if (data.size() == 0) {
+        qDebug() << "Received empty file data message";
+        // XXX error, not user cancel
+        cancel();
+        return;
+    }
+
+    // QIODevice should handle buffering if necessary
+    if (d->localDevice->write(data.data(), data.size()) != qint64(data.size())) {
+        qWarning() << "Write of file transfer failed";
+        // XXX error, not user cancel
+        cancel();
+        return;
+    }
+
+    // XXX signals? check for finished?
 }
 

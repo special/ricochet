@@ -236,8 +236,10 @@ void ContactUser::onConnected()
 #endif
 
     updateStatus();
-    if (isConnected())
+    if (isConnected()) {
         emit connected();
+        emit connectionChanged(m_connection);
+    }
 }
 
 void ContactUser::onDisconnected()
@@ -260,6 +262,7 @@ void ContactUser::onDisconnected()
 
     updateStatus();
     emit disconnected();
+    emit connectionChanged(0);
 }
 
 SettingsObject *ContactUser::settings()

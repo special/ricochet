@@ -152,6 +152,7 @@ signals:
     void statusChanged();
     void connected();
     void disconnected();
+    void connectionChanged(Protocol::Connection *connection);
 
     void nicknameChanged();
     void contactDeleted(ContactUser *user);

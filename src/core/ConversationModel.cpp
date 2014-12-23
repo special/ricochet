@@ -324,13 +324,10 @@ void ConversationModel::fileTransferAdded(FileTransfer *transfer)
     if (!m_contact || transfer->contact() != m_contact)
         return;
 
-    qDebug() << transfer;
-    beginInsertRows(QModelIndex(), 0, 1); // XXX
+    qDebug() << "Adding transfer to conversation model" << transfer;
+    beginInsertRows(QModelIndex(), 0, 0);
     MessageData message(QString(), QDateTime::currentDateTime(), 0, transfer->isOutbound() ? Delivered : Received);
     message.transfer = transfer;
-    messages.insert(0, message);
-    // XXX
-    message.status = Received;
     messages.insert(0, message);
     endInsertRows();
 }

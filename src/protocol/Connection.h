@@ -208,6 +208,7 @@ signals:
      * opened. At this point, the channel can be used or closed normally.
      */
     void channelOpened(Channel *channel);
+    void dataWritten();
 
 private:
     ConnectionPrivate *d;

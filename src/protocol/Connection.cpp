@@ -148,6 +148,13 @@ void ConnectionPrivate::setSocket(QTcpSocket *s, Connection::Direction d)
     direction = d;
     connect(socket, &QAbstractSocket::disconnected, this, &ConnectionPrivate::socketDisconnected);
     connect(socket, &QIODevice::readyRead, this, &ConnectionPrivate::socketReadable);
+    connect(socket, &QIODevice::bytesWritten, this,
+        [this]() {
+            if (!socket->bytesToWrite())
+                emit q->dataWritten();
+        }
+    );
+
 
     socket->setParent(q);
 

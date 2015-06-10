@@ -607,6 +607,12 @@ bool Connection::setPurpose(Purpose value)
             if (!hasAuthenticated(HiddenServiceAuth)) {
                 BUG() << "Connection purpose cannot be KnownContact without authenticating a service";
                 return false;
+            } else if (d->purpose != Purpose::Unknown &&
+                       d->purpose != Purpose::InboundRequest &&
+                       d->purpose != Purpose::OutboundRequest)
+            {
+                BUG() << "Connection purpose cannot change from" << int(d->purpose) << "to KnownContact";
+                return false;
             }
             break;
         case Purpose::OutboundRequest:
@@ -624,6 +630,12 @@ bool Connection::setPurpose(Purpose value)
                 return false;
             } else if (d->purpose != Purpose::Unknown) {
                 BUG() << "Connection purpose cannot change from" << int(d->purpose) << "to InboundRequest";
+                return false;
+            }
+            break;
+        case Purpose::FileTransferData:
+            if (d->purpose != Purpose::Unknown) {
+                BUG() << "Connection purpose cannot change from" << int(d->purpose) << "to FileTransferData";
                 return false;
             }
             break;

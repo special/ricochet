@@ -127,7 +127,8 @@ public:
         Unknown,
         KnownContact,
         OutboundRequest,
-        InboundRequest
+        InboundRequest,
+        FileTransferData
     };
 
     Purpose purpose() const;

@@ -1,0 +1,26 @@
+// im.ricochet.file-transfer.data
+package Protocol.Data.FileTransferData;
+import "ControlChannel.proto";
+
+// Used to transmit data packets for a file transfer, which is previously
+// arranged using im.ricochet.file-transfer. This channel may be used on
+// a known contact connection, or on an unauthenticated connection.
+//
+// The channel is always opened by the recipient of the file. The sending
+// peer should send a constant stream of Packet.
+
+extend Control.OpenChannel {
+    // Required, must match an established FileTransfer channel
+    optional bytes transfer_id = 301;
+    optional int64 start_position = 302;
+}
+
+// The only message sent over a FileTransferData channel
+message Packet {
+    // From the sender, a chunk of file data
+    optional bytes data = 1;
+    // Byte position in the file of this data chunk. Chunks must be sent
+    // sequentially.
+    optional int64 data_position = 2;
+    optional bool last_packet = 3;
+}

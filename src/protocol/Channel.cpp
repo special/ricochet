@@ -40,6 +40,7 @@
 #include "ChatChannel.h"
 #include "ContactRequestChannel.h"
 #include "FileTransferChannel.h"
+#include "FileTransferDataChannel.h"
 
 using namespace Protocol;
 
@@ -56,6 +57,8 @@ Channel *Channel::create(const QString &type, Direction direction, Connection *c
         return new ContactRequestChannel(direction, connection);
     } else if (type == QStringLiteral("im.ricochet.file-transfer")) {
         return new FileTransferChannel(direction, connection);
+    } else if (type == QStringLiteral("im.ricochet.file-transfer.data")) {
+        return new FileTransferDataChannel(direction, connection);
     } else {
         return 0;
     }

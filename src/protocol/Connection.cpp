@@ -137,6 +137,11 @@ int Connection::age() const
     return qRound(d->ageTimer.elapsed() / 1000.0);
 }
 
+qint64 Connection::bytesToWrite() const
+{
+    return d->socket ? d->socket->bytesToWrite() : 0;
+}
+
 void ConnectionPrivate::setSocket(QTcpSocket *s, Connection::Direction d)
 {
     if (socket) {

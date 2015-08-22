@@ -148,6 +148,9 @@ public:
     QString authenticatedIdentity(AuthenticationType type) const;
     void grantAuthentication(AuthenticationType type, const QString &identity = QString());
 
+    /* Bytes pending to write to the socket */
+    qint64 bytesToWrite() const;
+
 public slots:
     /* Close this connection and the underlying socket
      *

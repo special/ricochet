@@ -518,3 +518,22 @@ void ContactUser::clearConnection()
     m_connection.clear();
 }
 
+ContactUser *ContactUser::userFromConnection(UserIdentity *identity, const Protocol::Connection *connection)
+{
+    if (connection->purpose() != Protocol::Connection::Purpose::KnownContact ||
+        !connection->isConnected() ||
+        !connection->hasAuthenticated(Protocol::Connection::HiddenServiceAuth))
+    {
+        return 0;
+    }
+
+    ContactUser *user = identity->contacts.lookupHostname(connection->authenticatedIdentity(Protocol::Connection::HiddenServiceAuth));
+    if (user && user->connection().data() != connection) {
+        qWarning() << "userFromConnection found a contact matching the hostname on this connection, but that contact doesn't "
+                      "know this connection. This could be a bug, or it could mean that the connection is in the process of "
+                      "being destroyed.";
+        return 0;
+    }
+
+    return user;
+}

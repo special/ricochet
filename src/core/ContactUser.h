@@ -92,6 +92,8 @@ public:
     const QSharedPointer<Protocol::Connection> &connection() { return m_connection; }
     bool isConnected() const { return status() == Online; }
 
+    static ContactUser *userFromConnection(UserIdentity *identity, const Protocol::Connection *connection);
+
     OutgoingContactRequest *contactRequest() { return m_contactRequest; }
     ConversationModel *conversation() { return m_conversation; }
 

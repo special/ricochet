@@ -51,7 +51,8 @@ TorProcess::~TorProcess()
 }
 
 TorProcessPrivate::TorProcessPrivate(TorProcess *q)
-    : QObject(q), q(q), state(TorProcess::NotStarted), controlPort(0), controlPortAttempts(0)
+    : QObject(q), q(q), state(TorProcess::NotStarted), controlPort(0),
+      useControlSocket(false), controlPortAttempts(0)
 {
     connect(&process, &QProcess::started, this, &TorProcessPrivate::processStarted);
     connect(&process, (void (QProcess::*)(int, QProcess::ExitStatus))&QProcess::finished,
@@ -151,16 +152,28 @@ void TorProcess::start()
     args << QStringLiteral("-f") << d->torrcPath();
     args << QStringLiteral("DataDirectory") << d->dataDir;
     args << QStringLiteral("HashedControlPassword") << QString::fromLatin1(hashedPassword);
+    args << QStringLiteral("__OwningControllerProcess") << QString::number(qApp->applicationPid());
+
+#if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
+    /* Use unix sockets for control */
+    d->useControlSocket = true;
+    args << QStringLiteral("ControlPort") << QStringLiteral("unix:") + d->controlSocketPath();
+    if (QFile::exists(d->controlSocketPath()))
+        QFile::remove(d->controlSocketPath());
+#else
+    /* Fall back to using an automatic TCP port, and reading
+     * the port number chosen by tor out of a file. */
     args << QStringLiteral("ControlPort") << QStringLiteral("auto");
     args << QStringLiteral("ControlPortWriteToFile") << d->controlPortFilePath();
-    args << QStringLiteral("__OwningControllerProcess") << QString::number(qApp->applicationPid());
+    if (QFile::exists(d->controlPortFilePath()))
+        QFile::remove(d->controlPortFilePath());
+#endif
+
     args << d->extraSettings;
 
     d->state = Starting;
     emit stateChanged(d->state);
 
-    if (QFile::exists(d->controlPortFilePath()))
-        QFile::remove(d->controlPortFilePath());
     d->controlPort = 0;
     d->controlHost.clear();
 
@@ -214,6 +227,11 @@ quint16 TorProcess::controlPort()
     return d->controlPort;
 }
 
+QString TorProcess::controlSocketPath()
+{
+    return d->useControlSocket ? d->controlSocketPath() : QString();
+}
+
 bool TorProcessPrivate::ensureFilesExist()
 {
     QFile torrc(torrcPath());
@@ -241,6 +259,11 @@ QString TorProcessPrivate::torrcPath() const
 QString TorProcessPrivate::controlPortFilePath() const
 {
     return QDir::toNativeSeparators(dataDir) + QDir::separator() + QStringLiteral("control-port");
+}
+
+QString TorProcessPrivate::controlSocketPath() const
+{
+    return QDir::toNativeSeparators(QFileInfo(dataDir + QStringLiteral("/control")).absoluteFilePath());
 }
 
 void TorProcessPrivate::processStarted()
@@ -283,25 +306,29 @@ void TorProcessPrivate::processReadable()
 
 void TorProcessPrivate::tryReadControlPort()
 {
-    QFile file(controlPortFilePath());
-    if (file.open(QIODevice::ReadOnly)) {
-        QByteArray data = file.readLine().trimmed();
+    if (useControlSocket) {
+        if (QFile::exists(controlSocketPath()))
+            state = TorProcess::Ready;
+    } else {
+        QFile file(controlPortFilePath());
+        if (file.open(QIODevice::ReadOnly)) {
+            QByteArray data = file.readLine().trimmed();
 
-        int p;
-        if (data.startsWith("PORT=") && (p = data.lastIndexOf(':')) > 0) {
-            controlHost = QHostAddress(QString::fromLatin1(data.mid(5, p - 5)));
-            controlPort = data.mid(p+1).toUShort();
+            int p;
+            if (data.startsWith("PORT=") && (p = data.lastIndexOf(':')) > 0) {
+                controlHost = QHostAddress(QString::fromLatin1(data.mid(5, p - 5)));
+                controlPort = data.mid(p+1).toUShort();
 
-            if (!controlHost.isNull() && controlPort > 0) {
-                controlPortTimer.stop();
-                state = TorProcess::Ready;
-                emit q->stateChanged(state);
-                return;
+                if (!controlHost.isNull() && controlPort > 0)
+                    state = TorProcess::Ready;
             }
         }
     }
 
-    if (++controlPortAttempts * controlPortTimer.interval() > 10000) {
+    if (state == TorProcess::Ready) {
+        controlPortTimer.stop();
+        emit q->stateChanged(state);
+    } else if (++controlPortAttempts * controlPortTimer.interval() > 10000) {
         errorMessage = QStringLiteral("No control port available after launching process");
         state = TorProcess::Failed;
         emit q->errorMessageChanged(errorMessage);

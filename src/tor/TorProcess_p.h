@@ -55,6 +55,7 @@ public:
     QHostAddress controlHost;
     quint16 controlPort;
     QByteArray controlPassword;
+    bool useControlSocket;
 
     QTimer controlPortTimer;
     int controlPortAttempts;
@@ -63,6 +64,7 @@ public:
 
     QString torrcPath() const;
     QString controlPortFilePath() const;
+    QString controlSocketPath() const;
     bool ensureFilesExist();
 
 public slots:

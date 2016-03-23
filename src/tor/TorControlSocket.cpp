@@ -37,10 +37,8 @@
 using namespace Tor;
 
 TorControlSocket::TorControlSocket(QObject *parent)
-    : QTcpSocket(parent), currentCommand(0), inDataReply(false)
+    : QObject(parent), currentCommand(0), inDataReply(false)
 {
-    connect(this, SIGNAL(readyRead()), this, SLOT(process()));
-    connect(this, SIGNAL(disconnected()), this, SLOT(clear()));
 }
 
 TorControlSocket::~TorControlSocket()
@@ -48,12 +46,24 @@ TorControlSocket::~TorControlSocket()
     clear();
 }
 
+void TorControlSocket::setSocket(const QSharedPointer<AbstractSocket> &socket)
+{
+    clear();
+
+    m_socket = socket;
+    connect(m_socket->device(), &QIODevice::readyRead, this, &TorControlSocket::process);
+    connect(m_socket.data(), &AbstractSocket::connected, this, &TorControlSocket::connected);
+    connect(m_socket.data(), &AbstractSocket::disconnected, this, &TorControlSocket::disconnected);
+    connect(m_socket.data(), &AbstractSocket::disconnected, this, &TorControlSocket::clear);
+    connect(m_socket.data(), &AbstractSocket::errored, this, [this]() { setError(m_socket->errorString()); });
+}
+
 void TorControlSocket::sendCommand(TorControlCommand *command, const QByteArray &data)
 {
     Q_ASSERT(data.endsWith("\r\n"));
 
     commandQueue.append(command);
-    write(data);
+    m_socket->device()->write(data);
 
     qDebug() << "torctrl: Sent" << data.trimmed();
 }
@@ -80,22 +90,25 @@ void TorControlSocket::clear()
     eventCommands.clear();
     inDataReply = false;
     currentCommand = 0;
+    if (m_socket)
+        m_socket->abort();
+    m_socket.reset();
 }
 
 void TorControlSocket::setError(const QString &message)
 {
     m_errorMessage = message;
     emit error(message);
-    abort();
+    clear();
 }
 
 void TorControlSocket::process()
 {
     for (;;) {
-        if (!canReadLine())
+        if (!m_socket->device()->canReadLine())
             return;
 
-        QByteArray line = readLine(5120);
+        QByteArray line = m_socket->device()->readLine(5120);
         if (!line.endsWith("\r\n")) {
             setError(QStringLiteral("Invalid control message syntax"));
             return;

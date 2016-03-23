@@ -79,6 +79,7 @@ public:
     QString errorMessage() const;
     QHostAddress controlHost();
     quint16 controlPort();
+    QString controlSocketPath();
     QByteArray controlPassword();
 
 public slots:

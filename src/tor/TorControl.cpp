@@ -42,6 +42,7 @@
 #include "utils/Useful.h"
 #include "utils/Settings.h"
 #include "utils/PendingOperation.h"
+#include "utils/AbstractSocket.h"
 #include <QHostAddress>
 #include <QDir>
 #include <QNetworkProxy>
@@ -49,6 +50,9 @@
 #include <QTimer>
 #include <QSaveFile>
 #include <QRegularExpression>
+#include <QTcpSocket>
+#include <QLocalSocket>
+#include <QSharedPointer>
 #include <QDebug>
 
 Tor::TorControl *torControl = 0;
@@ -72,6 +76,7 @@ public:
     QHostAddress socksAddress;
     QList<HiddenService*> services;
     quint16 controlPort, socksPort;
+    QString controlPath;
     TorControl::Status status;
     TorControl::TorStatus torStatus;
     QVariantMap bootstrapStatus;
@@ -88,7 +93,6 @@ public:
 public slots:
     void socketConnected();
     void socketDisconnected();
-    void socketError();
 
     void authenticateReply();
     void protocolInfoReply();
@@ -107,15 +111,14 @@ TorControl::TorControl(QObject *parent)
 }
 
 TorControlPrivate::TorControlPrivate(TorControl *parent)
-    : QObject(parent), q(parent), controlPort(0), socksPort(0),
+    : QObject(parent), q(parent), socket(0), controlPort(0), socksPort(0),
       status(TorControl::NotConnected), torStatus(TorControl::TorUnknown),
       hasOwnership(false)
 {
     socket = new TorControlSocket(this);
-    QObject::connect(socket, SIGNAL(connected()), this, SLOT(socketConnected()));
-    QObject::connect(socket, SIGNAL(disconnected()), this, SLOT(socketDisconnected()));
-    QObject::connect(socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(socketError()));
-    QObject::connect(socket, SIGNAL(error(QString)), this, SLOT(setError(QString)));
+    connect(socket, &TorControlSocket::connected, this, &TorControlPrivate::socketConnected);
+    connect(socket, &TorControlSocket::disconnected, this, &TorControlPrivate::socketDisconnected);
+    connect(socket, &TorControlSocket::error, this, &TorControlPrivate::setError);
 }
 
 QNetworkProxy TorControl::connectionProxy()
@@ -165,7 +168,7 @@ void TorControlPrivate::setError(const QString &message)
 
     qWarning() << "torctrl: Error:" << errorMessage;
 
-    socket->abort();
+    socket->clear();
 
     QTimer::singleShot(15000, q, SLOT(reconnect()));
 }
@@ -233,21 +236,54 @@ void TorControl::connect(const QHostAddress &address, quint16 port)
     d->setTorStatus(TorUnknown);
 
     bool b = d->socket->blockSignals(true);
-    d->socket->abort();
+    d->socket->clear();
     d->socket->blockSignals(b);
 
     d->setStatus(Connecting);
-    d->socket->connectToHost(address, port);
+
+    QSharedPointer<AbstractSocket> socket(new AbstractSocket(new QTcpSocket), &QObject::deleteLater);
+    d->socket->setSocket(socket);
+    socket->tcpSocket()->connectToHost(address, port);
+}
+
+void TorControl::connect(const QString &path)
+{
+    if (status() > Connecting)
+    {
+        qDebug() << "Ignoring TorControl::connect due to existing connection";
+        return;
+    }
+
+    qDebug() << "torctrl: Connecting to control socket at" << path;
+
+    d->controlPath = path;
+    d->torAddress = QHostAddress();
+    d->controlPort = 0;
+    d->setTorStatus(TorUnknown);
+
+    bool b = d->socket->blockSignals(true);
+    d->socket->clear();
+    d->socket->blockSignals(b);
+
+    d->setStatus(Connecting);
+
+    QSharedPointer<AbstractSocket> socket(new AbstractSocket(new QLocalSocket), &QObject::deleteLater);
+    d->socket->setSocket(socket);
+    socket->localSocket()->connectToServer(path);
 }
 
 void TorControl::reconnect()
 {
-    Q_ASSERT(!d->torAddress.isNull() && d->controlPort);
-    if (d->torAddress.isNull() || !d->controlPort || status() >= Connecting)
+    if (status() >= Connecting)
         return;
 
-    d->setStatus(Connecting);
-    d->socket->connectToHost(d->torAddress, d->controlPort);
+    if (!d->torAddress.isNull() && d->controlPort) {
+        connect(d->torAddress, d->controlPort);
+    } else if (!d->controlPath.isEmpty()) {
+        connect(d->controlPath);
+    } else {
+        qWarning() << "Cannot reconnect to control port, because we don't know its address";
+    }
 }
 
 void TorControlPrivate::authenticateReply()
@@ -303,11 +339,6 @@ void TorControlPrivate::socketDisconnected()
 
     /* This emits the disconnected() signal as well */
     setStatus(TorControl::NotConnected);
-}
-
-void TorControlPrivate::socketError()
-{
-    setError(QStringLiteral("Connection failed: %1").arg(socket->errorString()));
 }
 
 void TorControlPrivate::protocolInfoReply()
@@ -421,20 +452,40 @@ void TorControlPrivate::getTorInfoReply()
     if (!command || !q->isConnected())
         return;
 
+    QHostAddress preferredAddress(QHostAddress::LocalHost);
+
+    if (socket->socket()->tcpSocket())
+        preferredAddress = socket->socket()->tcpSocket()->peerAddress();
+
     QList<QByteArray> listenAddresses = splitQuotedStrings(command->get(QByteArray("net/listeners/socks")).toString().toLatin1(), ' ');
     for (QList<QByteArray>::Iterator it = listenAddresses.begin(); it != listenAddresses.end(); ++it) {
         QByteArray value = unquotedString(*it);
-        int sepp = value.indexOf(':');
-        QHostAddress address(QString::fromLatin1(value.mid(0, sepp)));
-        quint16 port = (quint16)value.mid(sepp+1).toUInt();
+
+        QHostAddress address;
+        quint16 port;
+
+        if (value.startsWith("unix:")) {
+            // Unix SOCKS isn't supported yet
+            continue;
+        } else if (value.startsWith('[')) {
+            // IPv6
+            int end = value.indexOf("]:");
+            // XXX test this
+            address = QHostAddress(QString::fromLatin1(value.mid(1, end-1)));
+            port = (quint16)value.mid(end + 2).toUInt();
+        } else {
+            int end = value.indexOf(':');
+            address = QHostAddress(QString::fromLatin1(value.mid(0, end)));
+            port = (quint16)value.mid(end + 1).toUInt();
+        }
 
         /* Use the first address that matches the one used for this control connection. If none do,
          * just use the first address and rely on the user to reconfigure if necessary (not a problem;
          * their setup is already very customized) */
-        if (socksAddress.isNull() || address == socket->peerAddress()) {
+        if (socksAddress.isNull() || address == preferredAddress) {
             socksAddress = address;
             socksPort = port;
-            if (address == socket->peerAddress())
+            if (address == preferredAddress)
                 break;
         }
     }
@@ -563,9 +614,9 @@ void TorControl::shutdownSync()
     }
 
     shutdown();
-    while (d->socket->bytesToWrite())
+    while (d->socket->socket()->device()->bytesToWrite())
     {
-        if (!d->socket->waitForBytesWritten(5000))
+        if (!d->socket->socket()->device()->waitForBytesWritten(5000))
             return;
     }
 }

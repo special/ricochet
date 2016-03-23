@@ -189,12 +189,11 @@ void TorManager::start()
     SettingsObject settings(QStringLiteral("tor"));
 
     // If a control port is defined by config or environment, skip launching tor
-    if (!settings.read("controlPort").isUndefined() ||
-        !qEnvironmentVariableIsEmpty("TOR_CONTROL_PORT"))
-    {
+    if (d->isSystemTorConfigured()) {
         QHostAddress address(settings.read("controlAddress").toString());
         quint16 port = (quint16)settings.read("controlPort").toInt();
         QByteArray password = settings.read("controlPassword").toString().toLatin1();
+        QString socketPath = settings.read("controlSocket").toString();
 
         if (!qEnvironmentVariableIsEmpty("TOR_CONTROL_HOST"))
             address = QHostAddress(QString::fromLatin1(qgetenv("TOR_CONTROL_HOST")));
@@ -206,10 +205,13 @@ void TorManager::start()
                 port = 0;
         }
 
+        if (!qEnvironmentVariableIsEmpty("TOR_CONTROL_SOCKET"))
+            socketPath = QString::fromLatin1(qgetenv("TOR_CONTROL_SOCKET"));
+
         if (!qEnvironmentVariableIsEmpty("TOR_CONTROL_PASSWD"))
             password = qgetenv("TOR_CONTROL_PASSWD");
 
-        if (!port) {
+        if (!port && socketPath.isEmpty()) {
             d->setError(QStringLiteral("Invalid control port settings from environment or configuration"));
             return;
         }
@@ -218,7 +220,11 @@ void TorManager::start()
             address = QHostAddress::LocalHost;
 
         d->control->setAuthPassword(password);
-        d->control->connect(address, port);
+
+        if (!socketPath.isEmpty())
+            d->control->connect(socketPath);
+        else
+            d->control->connect(address, port);
     } else {
         // Launch a bundled Tor instance
         QString executable = d->torExecutablePath();
@@ -261,10 +267,13 @@ void TorManager::start()
 
 void TorManagerPrivate::processStateChanged(int state)
 {
-    qDebug() << Q_FUNC_INFO << state << TorProcess::Ready << process->controlPassword() << process->controlHost() << process->controlPort();
+    qDebug() << Q_FUNC_INFO << state << TorProcess::Ready << process->controlPassword() << process->controlHost() << process->controlPort() << process->controlSocketPath();
     if (state == TorProcess::Ready) {
         control->setAuthPassword(process->controlPassword());
-        control->connect(process->controlHost(), process->controlPort());
+        if (!process->controlSocketPath().isEmpty())
+            control->connect(process->controlSocketPath());
+        else
+            control->connect(process->controlHost(), process->controlPort());
     }
 }
 

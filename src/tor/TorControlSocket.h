@@ -33,20 +33,25 @@
 #ifndef TORCONTROLSOCKET_H
 #define TORCONTROLSOCKET_H
 
-#include <QTcpSocket>
+#include <QSharedPointer>
 #include <QQueue>
+#include <QHash>
+#include "utils/AbstractSocket.h"
 
 namespace Tor
 {
 
 class TorControlCommand;
 
-class TorControlSocket : public QTcpSocket
+class TorControlSocket : public QObject
 {
 Q_OBJECT
 public:
     explicit TorControlSocket(QObject *parent = 0);
     virtual ~TorControlSocket();
+
+    QSharedPointer<AbstractSocket> socket() const { return m_socket; }
+    void setSocket(const QSharedPointer<AbstractSocket> &socket);
 
     QString errorMessage() const { return m_errorMessage; }
 
@@ -55,14 +60,19 @@ public:
     void sendCommand(const QByteArray &data) { sendCommand(0, data); }
     void sendCommand(TorControlCommand *command, const QByteArray &data);
 
+public slots:
+    void clear();
+
 signals:
+    void connected();
+    void disconnected();
     void error(const QString &message);
 
 private slots:
     void process();
-    void clear();
 
 private:
+    QSharedPointer<AbstractSocket> m_socket;
     QQueue<TorControlCommand*> commandQueue;
     QHash<QByteArray,TorControlCommand*> eventCommands;
     QString m_errorMessage;

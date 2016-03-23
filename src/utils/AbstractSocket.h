@@ -69,7 +69,9 @@ public slots:
     void disconnectFromHost();
 
 signals:
+    void connected();
     void disconnected();
+    void errored();
 
 private:
     QTcpSocket *m_tcpSocket;

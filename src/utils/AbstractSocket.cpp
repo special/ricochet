@@ -38,7 +38,9 @@ AbstractSocket::AbstractSocket(QTcpSocket *socket, QObject *parent)
     Q_ASSERT(m_tcpSocket);
     m_tcpSocket->setParent(this);
 
+    connect(m_tcpSocket, &QAbstractSocket::connected, this, &AbstractSocket::connected);
     connect(m_tcpSocket, &QAbstractSocket::disconnected, this, &AbstractSocket::disconnected);
+    connect(m_tcpSocket, (void (QAbstractSocket::*)(QAbstractSocket::SocketError))&QAbstractSocket::error, this, &AbstractSocket::errored);
 }
 
 AbstractSocket::AbstractSocket(QLocalSocket *socket, QObject *parent)
@@ -47,7 +49,9 @@ AbstractSocket::AbstractSocket(QLocalSocket *socket, QObject *parent)
     Q_ASSERT(m_localSocket);
     m_localSocket->setParent(this);
 
+    connect(m_localSocket, &QLocalSocket::connected, this, &AbstractSocket::connected);
     connect(m_localSocket, &QLocalSocket::disconnected, this, &AbstractSocket::disconnected);
+    connect(m_localSocket, (void (QLocalSocket::*)(QLocalSocket::LocalSocketError))&QLocalSocket::error, this, &AbstractSocket::errored);
 }
 
 QAbstractSocket::SocketState AbstractSocket::state() const

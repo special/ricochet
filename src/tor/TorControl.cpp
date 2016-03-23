@@ -39,6 +39,7 @@
 #include "GetConfCommand.h"
 #include "AddOnionCommand.h"
 #include "utils/StringUtil.h"
+#include "utils/Useful.h"
 #include "utils/Settings.h"
 #include "utils/PendingOperation.h"
 #include <QHostAddress>
@@ -518,9 +519,21 @@ void TorControlPrivate::publishServices()
             const QList<HiddenService::Target> &targets = service->targets();
             for (QList<HiddenService::Target>::ConstIterator tit = targets.begin(); tit != targets.end(); ++tit)
             {
-                QString target = QString::fromLatin1("%1 %2:%3").arg(tit->servicePort)
-                                 .arg(tit->targetAddress.toString())
-                                 .arg(tit->targetPort);
+                QString target;
+                if (tit->targetPort && !tit->targetAddress.isNull()) {
+                    target = QString::fromLatin1("%1 %2:%3").arg(tit->servicePort)
+                                     .arg(tit->targetAddress.toString())
+                                     .arg(tit->targetPort);
+                } else if (!tit->socketPath.isEmpty()) {
+#ifdef Q_OS_WIN
+                    BUG() << "Unix sockets for hidden services are not supported on Windows";
+                    continue;
+#endif
+                    // XXX test this path
+                    target = QString::fromLatin1("%1 %2").arg(tit->servicePort).arg(QString::fromLatin1(quotedString("unix:" + tit->socketPath.toLatin1())));
+                } else {
+                    BUG() << "Empty target for hidden service";
+                }
                 torConfig.append(qMakePair(QByteArray("HiddenServicePort"), target.toLatin1()));
             }
 

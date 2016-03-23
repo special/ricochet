@@ -34,6 +34,7 @@
 #define USERIDENTITY_H
 
 #include "ContactsManager.h"
+#include "utils/AbstractSocket.h"
 #include <QObject>
 #include <QMetaType>
 #include <QVector>
@@ -48,8 +49,6 @@ namespace Protocol
 {
     class Connection;
 }
-
-class QTcpServer;
 
 /* UserIdentity represents the local identity offered by the user.
  *
@@ -116,7 +115,7 @@ private slots:
 private:
     SettingsObject *m_settings;
     Tor::HiddenService *m_hiddenService;
-    QTcpServer *m_incomingServer;
+    AbstractServer *m_incomingServer;
     QVector<QSharedPointer<Protocol::Connection>> m_incomingConnections;
 
     static UserIdentity *createIdentity(int uniqueID, const QString &dataDirectory = QString());

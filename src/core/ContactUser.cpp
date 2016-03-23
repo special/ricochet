@@ -178,7 +178,7 @@ void ContactUser::updateOutgoingSocket()
          * protocol has been released.
          */
         connect(m_outgoingSocket, &Protocol::OutboundConnector::oldVersionNegotiated, this,
-            [this](QTcpSocket *socket) {
+            [this](AbstractSocket *socket) {
                 if (m_settings->read("sentUpgradeNotification").toBool())
                     return;
                 QByteArray secret = m_settings->read<Base64Encode>("remoteSecret");
@@ -203,7 +203,7 @@ void ContactUser::updateOutgoingSocket()
                 data.append(secret);
                 data.append(reinterpret_cast<const char*>(command), sizeof(command));
                 data.append(upgradeMessage);
-                socket->write(data);
+                socket->device()->write(data);
 
                 m_settings->write("sentUpgradeNotification", true);
                 updateStatus();

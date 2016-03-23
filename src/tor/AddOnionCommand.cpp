@@ -34,6 +34,7 @@
 #include "tor/HiddenService.h"
 #include "utils/CryptoKey.h"
 #include "utils/StringUtil.h"
+#include "utils/Useful.h"
 
 using namespace Tor;
 
@@ -63,9 +64,18 @@ QByteArray AddOnionCommand::build()
         out += " Port=";
         out += QByteArray::number(target.servicePort);
         out += ",";
-        out += target.targetAddress.toString().toLatin1();
-        out += ":";
-        out += QByteArray::number(target.targetPort);
+
+        if (!target.targetAddress.isNull() && target.targetPort) {
+            out += target.targetAddress.toString().toLatin1();
+            out += ":";
+            out += QByteArray::number(target.targetPort);
+        } else if (!target.socketPath.isEmpty()) {
+            out += "unix:";
+            out += target.socketPath.toLatin1(); // XXX quoted?
+        } else {
+            // XXX Should this be BUG? maybe not
+            BUG() << "Hidden service is configured with an empty/invalid target";
+        }
     }
 
     out.append("\r\n");

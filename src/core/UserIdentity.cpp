@@ -37,6 +37,7 @@
 #include "protocol/Connection.h"
 #include "utils/Useful.h"
 #include <QTcpServer>
+#include <QLocalServer>
 #include <QTcpSocket>
 #include <QBuffer>
 #include <QDir>
@@ -118,6 +119,22 @@ void UserIdentity::setupService()
     Q_ASSERT(m_hiddenService);
     connect(m_hiddenService, SIGNAL(statusChanged(int,int)), SLOT(onStatusChanged(int,int)));
 
+#if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
+    QLocalServer *server = new QLocalServer(this);
+    // XXX is group access always the right choice?
+    server->setSocketOptions(QLocalServer::UserAccessOption | QLocalServer::GroupAccessOption);
+    QString path = QFileInfo(SettingsObject::defaultFile()->filePath()).absolutePath() + QStringLiteral("/service");
+    if (!server->listen(path)) {
+        // XXX error case
+        qWarning() << "Failed to open incoming local socket:" << server->serverName() << server->errorString();
+        delete server;
+        return;
+    }
+
+    m_incomingServer = new AbstractServer(server, this);
+    m_hiddenService->addTarget(9878, server->fullServerName());
+#else
+    // XXX Should probably disable socket when this is set, and have one for specifying socket path
     // Generally, these are not used, and we bind to localhost and port 0
     // for an automatic (and portable) selection.
     QHostAddress address(m_settings->read("localListenAddress").toString());
@@ -125,16 +142,18 @@ void UserIdentity::setupService()
         address = QHostAddress::LocalHost;
     quint16 port = (quint16)m_settings->read("localListenPort").toInt();
 
-    m_incomingServer = new QTcpServer(this);
-    if (!m_incomingServer->listen(address, port)) {
+    QTcpServer *server = new QTcpServer(this);
+    if (!server->listen(address, port)) {
         // XXX error case
-        qWarning() << "Failed to open incoming socket:" << m_incomingServer->errorString();
+        qWarning() << "Failed to open incoming socket:" << server->errorString();
         return;
     }
 
-    connect(m_incomingServer, &QTcpServer::newConnection, this, &UserIdentity::onIncomingConnection);
+    m_incomingServer = new AbstractServer(server, this);
+    m_hiddenService->addTarget(9878, server->serverAddress(), server->serverPort());
+#endif
 
-    m_hiddenService->addTarget(9878, m_incomingServer->serverAddress(), m_incomingServer->serverPort());
+    connect(m_incomingServer, &AbstractServer::newConnection, this, &UserIdentity::onIncomingConnection);
     torControl->addHiddenService(m_hiddenService);
 }
 
@@ -199,7 +218,7 @@ bool UserIdentity::isServiceOnline() const
 void UserIdentity::onIncomingConnection()
 {
     while (m_incomingServer->hasPendingConnections()) {
-        QTcpSocket *socket = m_incomingServer->nextPendingConnection();
+        AbstractSocket *socket = m_incomingServer->nextPendingConnection();
 
         /* The localHostname property is used by Connection to determine the
          * server onion hostname that this socket is connected to, which is

@@ -33,14 +33,14 @@
 #include "Connection_p.h"
 #include "ControlChannel.h"
 #include "utils/Useful.h"
-#include <QTcpSocket>
+#include "utils/AbstractSocket.h"
 #include <QTimer>
 #include <QtEndian>
 #include <QDebug>
 
 using namespace Protocol;
 
-Connection::Connection(QTcpSocket *socket, Direction direction)
+Connection::Connection(AbstractSocket *socket, Direction direction)
     : QObject()
     , d(new ConnectionPrivate(this))
 {
@@ -119,9 +119,11 @@ bool Connection::isConnected() const
 QString Connection::serverHostname() const
 {
     QString hostname;
-    if (direction() == ClientSide)
-        hostname = d->socket->peerName();
-    else if (direction() == ServerSide)
+    if (direction() == ClientSide) {
+        // For now, this must always be TCP, because it will be SOCKS.
+        Q_ASSERT(d->socket->tcpSocket());
+        hostname = d->socket->tcpSocket()->peerName();
+    } else if (direction() == ServerSide)
         hostname = d->socket->property("localHostname").toString();
 
     if (!hostname.endsWith(QStringLiteral(".onion"))) {
@@ -137,7 +139,7 @@ int Connection::age() const
     return qRound(d->ageTimer.elapsed() / 1000.0);
 }
 
-void ConnectionPrivate::setSocket(QTcpSocket *s, Connection::Direction d)
+void ConnectionPrivate::setSocket(AbstractSocket *s, Connection::Direction d)
 {
     if (socket) {
         BUG() << "Connection already has a socket";
@@ -146,8 +148,8 @@ void ConnectionPrivate::setSocket(QTcpSocket *s, Connection::Direction d)
 
     socket = s;
     direction = d;
-    connect(socket, &QAbstractSocket::disconnected, this, &ConnectionPrivate::socketDisconnected);
-    connect(socket, &QIODevice::readyRead, this, &ConnectionPrivate::socketReadable);
+    connect(socket, &AbstractSocket::disconnected, this, &ConnectionPrivate::socketDisconnected);
+    connect(socket->device(), &QIODevice::readyRead, this, &ConnectionPrivate::socketReadable);
 
     socket->setParent(q);
 
@@ -179,7 +181,7 @@ void ConnectionPrivate::setSocket(QTcpSocket *s, Connection::Direction d)
 
         // Send the introduction version handshake message
         char intro[] = { 0x49, 0x4D, 0x02, ProtocolVersion, 0 };
-        if (socket->write(intro, sizeof(intro)) < (int)sizeof(intro)) {
+        if (socket->device()->write(intro, sizeof(intro)) < (int)sizeof(intro)) {
             qDebug() << "Failed writing introduction message to socket";
             q->close();
             return;
@@ -233,13 +235,14 @@ void ConnectionPrivate::socketDisconnected()
 
 void ConnectionPrivate::socketReadable()
 {
+    QIODevice *device = socket->device();
     if (!handshakeDone) {
-        qint64 available = socket->bytesAvailable();
+        qint64 available = device->bytesAvailable();
 
         if (direction == Connection::ClientSide && available >= 1) {
             // Expecting a single byte in response with the chosen version
             uchar version = ProtocolVersionFailed;
-            if (socket->read(reinterpret_cast<char*>(&version), 1) < 1) {
+            if (device->read(reinterpret_cast<char*>(&version), 1) < 1) {
                 qDebug() << "Connection socket error" << socket->error() << "during read:" << socket->errorString();
                 socket->abort();
                 return;
@@ -261,7 +264,7 @@ void ConnectionPrivate::socketReadable()
         } else if (direction == Connection::ServerSide && available >= 3) {
             // Expecting at least 3 bytes
             uchar intro[3] = { 0 };
-            qint64 re = socket->peek(reinterpret_cast<char*>(intro), sizeof(intro));
+            qint64 re = device->peek(reinterpret_cast<char*>(intro), sizeof(intro));
             if (re < (int)sizeof(intro)) {
                 qDebug() << "Connection socket error" << socket->error() << "during read:" << socket->errorString();
                 socket->abort();
@@ -279,10 +282,10 @@ void ConnectionPrivate::socketReadable()
                 return;
 
             // Discard intro header
-            re = socket->read(reinterpret_cast<char*>(intro), sizeof(intro));
+            re = device->read(reinterpret_cast<char*>(intro), sizeof(intro));
 
             QByteArray versions(nVersions, 0);
-            re = socket->read(versions.data(), versions.size());
+            re = device->read(versions.data(), versions.size());
             if (re != versions.size()) {
                 qDebug() << "Connection socket error" << socket->error() << "during read:" << socket->errorString();
                 socket->abort();
@@ -297,7 +300,7 @@ void ConnectionPrivate::socketReadable()
                 }
             }
 
-            re = socket->write(reinterpret_cast<char*>(&selectedVersion), 1);
+            re = device->write(reinterpret_cast<char*>(&selectedVersion), 1);
             if (re != 1) {
                 qDebug() << "Connection socket error" << socket->error() << "during write:" << socket->errorString();
                 socket->abort();
@@ -319,11 +322,11 @@ void ConnectionPrivate::socketReadable()
     }
 
     qint64 available;
-    while ((available = socket->bytesAvailable()) >= PacketHeaderSize) {
+    while ((available = device->bytesAvailable()) >= PacketHeaderSize) {
         uchar header[PacketHeaderSize];
         // Peek at the header first, to read the size of the packet and make sure
         // the entire thing is available within the buffer.
-        qint64 re = socket->peek(reinterpret_cast<char*>(header), PacketHeaderSize);
+        qint64 re = device->peek(reinterpret_cast<char*>(header), PacketHeaderSize);
         if (re < 0) {
             qDebug() << "Connection socket error" << socket->error() << "during read:" << socket->errorString();
             socket->abort();
@@ -347,12 +350,12 @@ void ConnectionPrivate::socketReadable()
             break;
 
         // Read header out of the buffer and discard
-        re = socket->read(reinterpret_cast<char*>(header), PacketHeaderSize);
+        re = device->read(reinterpret_cast<char*>(header), PacketHeaderSize);
         if (re != PacketHeaderSize) {
             if (re < 0) {
                 qDebug() << "Connection socket error" << socket->error() << "during read:" << socket->errorString();
             } else {
-                // Because of QTcpSocket buffering, we can expect that up to 'available' bytes
+                // Because of QIODevice buffering, we can expect that up to 'available' bytes
                 // will read. Treat anything less as an error condition.
                 BUG() << "Socket read was unexpectedly small;" << available << "bytes should've been available but we read" << re;
             }
@@ -362,7 +365,7 @@ void ConnectionPrivate::socketReadable()
 
         // Read data
         QByteArray data(packetSize - PacketHeaderSize, 0);
-        re = (data.size() == 0) ? 0 : socket->read(data.data(), data.size());
+        re = (data.size() == 0) ? 0 : device->read(data.data(), data.size());
         if (re != data.size()) {
             if (re < 0) {
                 qDebug() << "Connection socket error" << socket->error() << "during read:" << socket->errorString();
@@ -440,14 +443,15 @@ bool ConnectionPrivate::writePacket(int channelId, const QByteArray &data)
     qToBigEndian(static_cast<quint16>(PacketHeaderSize + data.size()), header);
     qToBigEndian(static_cast<quint16>(channelId), &header[2]);
 
-    qint64 re = socket->write(reinterpret_cast<char*>(header), PacketHeaderSize);
+    QIODevice *device = socket->device();
+    qint64 re = device->write(reinterpret_cast<char*>(header), PacketHeaderSize);
     if (re != PacketHeaderSize) {
         qDebug() << "Connection socket error" << socket->error() << "during write:" << socket->errorString();
         socket->abort();
         return false;
     }
 
-    re = socket->write(data);
+    re = device->write(data);
     if (re != data.size()) {
         qDebug() << "Connection socket error" << socket->error() << "during write:" << socket->errorString();
         socket->abort();

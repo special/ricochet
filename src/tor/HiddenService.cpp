@@ -84,9 +84,15 @@ void HiddenService::addTarget(const Target &target)
     m_targets.append(target);
 }
 
+void HiddenService::addTarget(quint16 servicePort, const QString &socketPath)
+{
+    Target t = { QHostAddress(), servicePort, 0, socketPath };
+    m_targets.append(t);
+}
+
 void HiddenService::addTarget(quint16 servicePort, QHostAddress targetAddress, quint16 targetPort)
 {
-    Target t = { targetAddress, servicePort, targetPort };
+    Target t = { targetAddress, servicePort, targetPort, QString() };
     m_targets.append(t);
 }
 

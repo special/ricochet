@@ -37,6 +37,7 @@
 #include "protocol/Connection.h"
 #include "utils/Useful.h"
 #include <QTcpServer>
+#include <QLocalServer>
 #include <QTcpSocket>
 #include <QBuffer>
 #include <QDir>
@@ -118,23 +119,59 @@ void UserIdentity::setupService()
     Q_ASSERT(m_hiddenService);
     connect(m_hiddenService, SIGNAL(statusChanged(int,int)), SLOT(onStatusChanged(int,int)));
 
-    // Generally, these are not used, and we bind to localhost and port 0
-    // for an automatic (and portable) selection.
+    /* Set up the socket for the hidden service. By default, use a local socket on
+     * Linux and Mac systems, and a random localhost port on Windows. A port or socket
+     * path can be explicitly configured to override this behavior. */
     QHostAddress address(m_settings->read("localListenAddress").toString());
     if (address.isNull())
         address = QHostAddress::LocalHost;
     quint16 port = (quint16)m_settings->read("localListenPort").toInt();
 
-    m_incomingServer = new QTcpServer(this);
-    if (!m_incomingServer->listen(address, port)) {
-        // XXX error case
-        qWarning() << "Failed to open incoming socket:" << m_incomingServer->errorString();
-        return;
+#if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
+    QString socketPath = m_settings->read("localSocketPath").toString();
+    // Only use the default socket path if an explicit port wasn't specified
+    if (socketPath.isEmpty() && !port)
+        socketPath = QFileInfo(SettingsObject::defaultFile()->filePath()).absolutePath() + QStringLiteral("/service");
+#else
+    QString socketPath;
+#endif
+
+    if (port || socketPath.isEmpty()) {
+        // TCP socket
+        QTcpServer *server = new QTcpServer(this);
+        if (!server->listen(address, port)) {
+            // XXX error case
+            qWarning() << "Failed to open incoming socket:" << server->errorString();
+            return;
+        }
+
+        m_incomingServer = new AbstractServer(server, this);
+        m_hiddenService->addTarget(9878, server->serverAddress(), server->serverPort());
+        qDebug() << "Hidden service is listening (locally) on" << server->serverAddress() << "port" << server->serverPort();
+    } else {
+        // Unix/local socket
+        /* XXX This can be used by an adversary capable of writing ricochet.json to
+         * trick Ricochet into removing any file. Is that a problem? Is there a form
+         * of unlinking this socket that avoids this without a race condition? */
+        if (QFile::exists(socketPath))
+            QFile::remove(socketPath);
+
+        QLocalServer *server = new QLocalServer(this);
+        // XXX is group access always the right choice?
+        server->setSocketOptions(QLocalServer::UserAccessOption | QLocalServer::GroupAccessOption);
+        if (!server->listen(socketPath)) {
+            // XXX error case
+            qWarning() << "Failed to open incoming local socket:" << server->serverName() << server->errorString();
+            delete server;
+            return;
+        }
+
+        m_incomingServer = new AbstractServer(server, this);
+        m_hiddenService->addTarget(9878, server->fullServerName());
+        qDebug() << "Hidden service is listening (locally) on" << server->fullServerName();
     }
 
-    connect(m_incomingServer, &QTcpServer::newConnection, this, &UserIdentity::onIncomingConnection);
-
-    m_hiddenService->addTarget(9878, m_incomingServer->serverAddress(), m_incomingServer->serverPort());
+    connect(m_incomingServer, &AbstractServer::newConnection, this, &UserIdentity::onIncomingConnection);
     torControl->addHiddenService(m_hiddenService);
 }
 
@@ -199,7 +236,7 @@ bool UserIdentity::isServiceOnline() const
 void UserIdentity::onIncomingConnection()
 {
     while (m_incomingServer->hasPendingConnections()) {
-        QTcpSocket *socket = m_incomingServer->nextPendingConnection();
+        QSharedPointer<AbstractSocket> socket(m_incomingServer->nextPendingConnection(), &QObject::deleteLater);
 
         /* The localHostname property is used by Connection to determine the
          * server onion hostname that this socket is connected to, which is
@@ -209,7 +246,6 @@ void UserIdentity::onIncomingConnection()
 
         qDebug() << "Accepted new incoming connection";
         QSharedPointer<Connection> conn(new Connection(socket, Connection::ServerSide), &QObject::deleteLater);
-        Q_ASSERT(socket->parent());
 
         m_incomingConnections.append(conn);
         Connection *connPtr = conn.data();

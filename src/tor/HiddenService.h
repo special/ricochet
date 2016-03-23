@@ -55,6 +55,7 @@ public:
     {
         QHostAddress targetAddress;
         quint16 servicePort, targetPort;
+        QString socketPath;
     };
 
     enum Status
@@ -78,6 +79,7 @@ public:
 
     const QList<Target> &targets() const { return m_targets; }
     void addTarget(const Target &target);
+    void addTarget(quint16 servicePort, const QString &socketPath);
     void addTarget(quint16 servicePort, QHostAddress targetAddress, quint16 targetPort);
 
 signals:

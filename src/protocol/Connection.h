@@ -35,9 +35,9 @@
 
 #include <QObject>
 #include <QHash>
+#include <QSharedPointer>
 #include "Channel.h"
-
-class QTcpSocket;
+#include "utils/AbstractSocket.h"
 
 namespace Protocol
 {
@@ -93,7 +93,7 @@ public:
      * becomes invalid (but is not automatically deleted) once
      * the socket has disconnected.
      */
-    explicit Connection(QTcpSocket *socket, Direction direction);
+    explicit Connection(const QSharedPointer<AbstractSocket> &socket, Direction direction);
     virtual ~Connection();
 
     Direction direction() const;
@@ -178,7 +178,7 @@ signals:
     /* Hack to allow delivering an upgrade message to old clients
      * XXX: Remove this once enough time has passed for most clients to be upgraded.
      */
-    void oldVersionNegotiated(QTcpSocket *socket);
+    void oldVersionNegotiated(const QSharedPointer<AbstractSocket> &socket);
 
     void authenticated(AuthenticationType type, const QString &identity);
     void purposeChanged(Purpose after, Purpose before);

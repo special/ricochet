@@ -246,10 +246,9 @@ void OutboundConnectorPrivate::onConnected()
         return;
     }
 
-    connection = QSharedPointer<Connection>(new Connection(socket, Connection::ClientSide), &QObject::deleteLater);
+    QSharedPointer<AbstractSocket> abstractSocket(new AbstractSocket(socket), &QObject::deleteLater);
+    connection = QSharedPointer<Connection>(new Connection(abstractSocket, Connection::ClientSide), &QObject::deleteLater);
 
-    // Socket is now owned by connection
-    Q_ASSERT(socket->parent() == connection);
     socket->setReconnectEnabled(false);
     socket = 0;
 

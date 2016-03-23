@@ -34,6 +34,7 @@
 #define PROTOCOL_CONNECTION_P_H
 
 #include "Connection.h"
+#include "utils/AbstractSocket.h"
 #include <QMap>
 #include <QElapsedTimer>
 #include <cstdint>
@@ -58,7 +59,7 @@ public:
     virtual ~ConnectionPrivate();
 
     Connection *q;
-    QTcpSocket *socket;
+    QSharedPointer<AbstractSocket> socket;
     QHash<int,Channel*> channels;
     QMap<Connection::AuthenticationType,QString> authentication;
     QElapsedTimer ageTimer;
@@ -67,7 +68,7 @@ public:
     bool wasClosed;
     bool handshakeDone;
 
-    void setSocket(QTcpSocket *socket, Connection::Direction direction);
+    void setSocket(const QSharedPointer<AbstractSocket> &socket, Connection::Direction direction);
 
     int availableOutboundChannelId();
     bool isValidAvailableChannelId(int channelId, Connection::Direction idDirection);

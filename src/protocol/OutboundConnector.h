@@ -99,7 +99,7 @@ signals:
      * software versions that don't have a good way to handle this
      * sort of situation.
      */
-    void oldVersionNegotiated(QTcpSocket *socket);
+    void oldVersionNegotiated(const QSharedPointer<AbstractSocket> &socket);
 
 private:
     OutboundConnectorPrivate *d;

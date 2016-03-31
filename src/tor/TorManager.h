@@ -67,6 +67,9 @@ public:
     QString dataDirectory() const;
     void setDataDirectory(const QString &path);
 
+    // Path for creating unix sockets to connect to hidden services
+    QString serviceSocketsPath() const;
+
     // True on first run or when the Tor configuration wizard needs to be shown
     bool configurationNeeded() const;
 

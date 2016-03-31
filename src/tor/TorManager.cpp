@@ -65,6 +65,8 @@ public:
 
     void setError(const QString &errorMessage);
 
+    bool isSystemTorConfigured() const;
+
 public slots:
     void processStateChanged(int state);
     void processErrorChanged(const QString &errorMessage);
@@ -120,6 +122,34 @@ void TorManager::setDataDirectory(const QString &path)
         d->dataDir.append(QLatin1Char('/'));
 }
 
+QString TorManager::serviceSocketsPath() const
+{
+#if defined(Q_OS_UNIX)
+    /* For bundled Tor, use the configuration path. This function may
+     * be called before Tor is started, so we can't check whether the
+     * TorProcess exists for this. */
+    if (!d->isSystemTorConfigured())
+        return QFileInfo(SettingsObject::defaultFile()->filePath()).absolutePath();
+
+    /* XXX As an improvement, we could use the runtime path if the
+     * tor process is running as the same user, but this would require
+     * querying the uid from the control port and ensuring that this
+     * function is not used too early. */
+
+    /* To work around tor having PrivateTmp on debian, prefer using
+     * /dev/shm/ for sockets if available and writable */
+    QFileInfo shm(QStringLiteral("/dev/shm"));
+    if (shm.exists() && shm.isWritable() && shm.isDir())
+        return shm.filePath();
+
+    /* Use the temporary files directory */
+    return QDir::tempPath();
+#else
+    BUG() << "Local sockets are not supported on this platform";
+    return QString();
+#endif
+}
+
 bool TorManager::configurationNeeded() const
 {
     return d->configNeeded;
@@ -138,6 +168,15 @@ bool TorManager::hasError() const
 QString TorManager::errorMessage() const
 {
     return d->errorMessage;
+}
+
+bool TorManagerPrivate::isSystemTorConfigured() const
+{
+    SettingsObject settings(QStringLiteral("tor"));
+    return !settings.read("controlPort").isUndefined() ||
+           !settings.read("controlSocket").isUndefined() ||
+           !qEnvironmentVariableIsEmpty("TOR_CONTROL_PORT") ||
+           !qEnvironmentVariableIsEmpty("TOR_CONTROL_SOCKET");
 }
 
 void TorManager::start()

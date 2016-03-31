@@ -31,11 +31,13 @@
  */
 
 #include "UserIdentity.h"
+#include "tor/TorManager.h"
 #include "tor/TorControl.h"
 #include "tor/HiddenService.h"
 #include "core/ContactIDValidator.h"
 #include "protocol/Connection.h"
 #include "utils/Useful.h"
+#include "utils/SecureRNG.h"
 #include <QTcpServer>
 #include <QLocalServer>
 #include <QTcpSocket>
@@ -127,13 +129,15 @@ void UserIdentity::setupService()
         address = QHostAddress::LocalHost;
     quint16 port = (quint16)m_settings->read("localListenPort").toInt();
 
-#if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
-    QString socketPath = m_settings->read("localSocketPath").toString();
-    // Only use the default socket path if an explicit port wasn't specified
-    if (socketPath.isEmpty() && !port)
-        socketPath = QFileInfo(SettingsObject::defaultFile()->filePath()).absolutePath() + QStringLiteral("/service");
-#else
     QString socketPath;
+#ifdef Q_OS_UNIX
+    socketPath = m_settings->read("localSocketPath").toString();
+    // Only use the default socket path if an explicit port wasn't specified
+    if (socketPath.isEmpty() && !port) {
+        socketPath = Tor::TorManager::instance()->serviceSocketsPath();
+        socketPath += QStringLiteral("/ricochet_");
+        socketPath += QString::fromLatin1(SecureRNG::randomPrintable(6));
+    }
 #endif
 
     if (port || socketPath.isEmpty()) {
@@ -157,7 +161,7 @@ void UserIdentity::setupService()
             QFile::remove(socketPath);
 
         QLocalServer *server = new QLocalServer(this);
-        // XXX is group access always the right choice?
+        // XXX is group access always the right choice? (nope.)
         server->setSocketOptions(QLocalServer::UserAccessOption | QLocalServer::GroupAccessOption);
         if (!server->listen(socketPath)) {
             // XXX error case

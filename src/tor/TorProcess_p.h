@@ -64,7 +64,7 @@ public:
 
     QString torrcPath() const;
     QString controlPortFilePath() const;
-    QString controlSocketPath() const;
+    QString socketPath(const QString &name) const;
     bool ensureFilesExist();
 
 public slots:

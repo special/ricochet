@@ -33,27 +33,28 @@
 #ifndef TORSOCKET_H
 #define TORSOCKET_H
 
-#include <QTcpSocket>
+#include <QObject>
 #include <QTimer>
+#include <QAbstractSocket>
+#include <QSharedPointer>
+#include "utils/AbstractSocket.h"
 
 namespace Tor {
 
-/* Specialized QTcpSocket which makes connections over the SOCKS proxy
+/* Wrapper around a socket, which makes connections over the SOCKS proxy
  * from a TorControl instance, automatically attempts reconnections, and
  * reacts to Tor's connectivity state.
  *
- * Use normal QTcpSocket/QAbstractSocket API. When a connection fails, it
- * will be retried automatically after the correct interval and when
- * connectivity is available.
- *
- * To fully disconnect, destroy the object, or call
- * setReconnectEnabled(false) and disconnect the socket with
- * disconnectFromHost or abort.
+ * Once a connection is established, the socket can be retrieved with the
+ * socket() method and used normally. When the connection is lost, that
+ * socket is discarded, and TorSocket will attempt to reconnect. When a
+ * new connection is established, it will have a new socket instance.
  *
  * The caller is responsible for resetting the attempt counter if a
- * connection was successful and reconnection will be used again.
+ * connection was successful and reconnection will be used again on
+ * this instance of TorSocket.
  */
-class TorSocket : public QTcpSocket
+class TorSocket : public QObject
 {
     Q_OBJECT
 
@@ -67,11 +68,17 @@ public:
     void setMaxAttemptInterval(int interval);
     void resetAttempts();
 
-    virtual void connectToHost(const QString &hostName, quint16 port, OpenMode openMode = ReadWrite, NetworkLayerProtocol protocol = AnyIPProtocol);
-    virtual void connectToHost(const QHostAddress &address, quint16 port, OpenMode openMode = ReadWrite);
+    const QSharedPointer<AbstractSocket> &socket() const { return m_socket; };
+
+    virtual void connectToHost(const QString &hostName, quint16 port);
+    virtual void connectToHost(const QHostAddress &address, quint16 port);
 
     QString hostName() const { return m_host; }
     quint16 port() const { return m_port; }
+
+signals:
+    void socketChanged();
+    void connected();
 
 protected:
     virtual int reconnectInterval();
@@ -80,16 +87,17 @@ private slots:
     void reconnect();
     void connectivityChanged();
     void onFailed();
+    void sendSocksRequest();
+    void handleSocksResponse();
 
 private:
+    QSharedPointer<AbstractSocket> m_socket;
     QString m_host;
     quint16 m_port;
     QTimer m_connectTimer;
     bool m_reconnectEnabled;
     int m_maxInterval;
     int m_connectAttempts;
-
-    using QAbstractSocket::connectToHost;
 };
 
 }

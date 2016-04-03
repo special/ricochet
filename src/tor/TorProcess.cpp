@@ -157,9 +157,17 @@ void TorProcess::start()
 #if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
     /* Use unix sockets for control */
     d->useControlSocket = true;
-    args << QStringLiteral("ControlPort") << QStringLiteral("unix:") + d->controlSocketPath();
-    if (QFile::exists(d->controlSocketPath()))
-        QFile::remove(d->controlSocketPath());
+    QString controlPath = d->socketPath(QStringLiteral("control"));
+    args << QStringLiteral("ControlPort") << QStringLiteral("unix:") + controlPath;
+    if (QFile::exists(controlPath))
+        QFile::remove(controlPath);
+
+    /* Also set up a unix socket for SOCKS. See createDefaultTorrc for
+     * an explanation of the flags. */
+    QString socksPath = d->socketPath(QStringLiteral("socks"));
+    args << QStringLiteral("SocksPort") << QStringLiteral("unix:") + socksPath + QStringLiteral(" NoIPv4Traffic IPv6Traffic");
+    if (QFile::exists(socksPath))
+        QFile::remove(socksPath);
 #else
     /* Fall back to using an automatic TCP port, and reading
      * the port number chosen by tor out of a file. */
@@ -229,7 +237,7 @@ quint16 TorProcess::controlPort()
 
 QString TorProcess::controlSocketPath()
 {
-    return d->useControlSocket ? d->controlSocketPath() : QString();
+    return d->useControlSocket ? d->socketPath(QStringLiteral("control")) : QString();
 }
 
 bool TorProcessPrivate::ensureFilesExist()
@@ -261,9 +269,9 @@ QString TorProcessPrivate::controlPortFilePath() const
     return QDir::toNativeSeparators(dataDir) + QDir::separator() + QStringLiteral("control-port");
 }
 
-QString TorProcessPrivate::controlSocketPath() const
+QString TorProcessPrivate::socketPath(const QString &name) const
 {
-    return QDir::toNativeSeparators(QFileInfo(dataDir + QStringLiteral("/control")).absoluteFilePath());
+    return QDir::toNativeSeparators(QFileInfo(dataDir + QStringLiteral("/") + name).absoluteFilePath());
 }
 
 void TorProcessPrivate::processStarted()
@@ -307,7 +315,7 @@ void TorProcessPrivate::processReadable()
 void TorProcessPrivate::tryReadControlPort()
 {
     if (useControlSocket) {
-        if (QFile::exists(controlSocketPath()))
+        if (QFile::exists(socketPath(QStringLiteral("control"))))
             state = TorProcess::Ready;
     } else {
         QFile file(controlPortFilePath());

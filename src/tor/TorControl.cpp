@@ -74,6 +74,7 @@ public:
     QString torVersion;
     QByteArray authPassword;
     QHostAddress socksAddress;
+    QString socksSocketPath;
     QList<HiddenService*> services;
     quint16 controlPort, socksPort;
     QString controlPath;
@@ -89,6 +90,8 @@ public:
 
     void getTorInfo();
     void publishServices();
+
+    bool hasSocksInfo();
 
 public slots:
     void socketConnected();
@@ -121,9 +124,17 @@ TorControlPrivate::TorControlPrivate(TorControl *parent)
     connect(socket, &TorControlSocket::error, this, &TorControlPrivate::setError);
 }
 
-QNetworkProxy TorControl::connectionProxy()
+QSharedPointer<AbstractSocket> TorControl::createSocksSocket()
 {
-    return QNetworkProxy(QNetworkProxy::Socks5Proxy, d->socksAddress.toString(), d->socksPort);
+    if (!d->socksSocketPath.isEmpty()) {
+        QLocalSocket *s = new QLocalSocket;
+        s->connectToServer(d->socksSocketPath);
+        return QSharedPointer<AbstractSocket>(new AbstractSocket(s), &QObject::deleteLater);
+    } else {
+        QTcpSocket *s = new QTcpSocket;
+        s->connectToHost(d->socksAddress, d->socksPort);
+        return QSharedPointer<AbstractSocket>(new AbstractSocket(s), &QObject::deleteLater);
+    }
 }
 
 void TorControlPrivate::setStatus(TorControl::Status n)
@@ -155,7 +166,7 @@ void TorControlPrivate::setTorStatus(TorControl::TorStatus n)
     emit q->torStatusChanged(torStatus, old);
     emit q->connectivityChanged();
 
-    if (torStatus == TorControl::TorReady && socksAddress.isNull()) {
+    if (torStatus == TorControl::TorReady && !hasSocksInfo()) {
         // Request info again to read the SOCKS port
         getTorInfo();
     }
@@ -195,7 +206,7 @@ QString TorControl::errorMessage() const
 
 bool TorControl::hasConnectivity() const
 {
-    return torStatus() == TorReady && !d->socksAddress.isNull();
+    return torStatus() == TorReady && d->hasSocksInfo();
 }
 
 QHostAddress TorControl::socksAddress() const
@@ -206,6 +217,11 @@ QHostAddress TorControl::socksAddress() const
 quint16 TorControl::socksPort() const
 {
     return d->socksPort;
+}
+
+QString TorControl::socksSocketPath() const
+{
+    return d->socksSocketPath;
 }
 
 QList<HiddenService*> TorControl::hiddenServices() const
@@ -335,6 +351,7 @@ void TorControlPrivate::socketDisconnected()
     torVersion.clear();
     socksAddress.clear();
     socksPort = 0;
+    socksSocketPath.clear();
     setTorStatus(TorControl::TorUnknown);
 
     /* This emits the disconnected() signal as well */
@@ -434,11 +451,13 @@ void TorControlPrivate::getTorInfo()
     SettingsObject settings(QStringLiteral("tor"));
     QHostAddress forceAddress(settings.read("socksAddress").toString());
     quint16 port = (quint16)settings.read("socksPort").toInt();
+    QString socketPath = settings.read("socksSocketPath").toString();
 
-    if (!forceAddress.isNull() && port) {
+    if ((!forceAddress.isNull() && port) || !socketPath.isEmpty()) {
         qDebug() << "torctrl: Using manually specified SOCKS connection settings";
         socksAddress = forceAddress;
         socksPort = port;
+        socksSocketPath = socketPath;
         emit q->connectivityChanged();
     } else
         keys << QByteArray("net/listeners/socks");
@@ -453,6 +472,8 @@ void TorControlPrivate::getTorInfoReply()
         return;
 
     QHostAddress preferredAddress(QHostAddress::LocalHost);
+    // XXX We really might need to start testing them in priority order instead..
+    bool preferUnix = socket->socket()->localSocket() != 0;
 
     if (socket->socket()->tcpSocket())
         preferredAddress = socket->socket()->tcpSocket()->peerAddress();
@@ -462,11 +483,11 @@ void TorControlPrivate::getTorInfoReply()
         QByteArray value = unquotedString(*it);
 
         QHostAddress address;
-        quint16 port;
+        quint16 port = 0;
+        QString socketPath;
 
         if (value.startsWith("unix:")) {
-            // Unix SOCKS isn't supported yet
-            continue;
+            socketPath = QString::fromLatin1(value.mid(QLatin1String("unix:").size()));
         } else if (value.startsWith('[')) {
             // IPv6
             int end = value.indexOf("]:");
@@ -482,10 +503,17 @@ void TorControlPrivate::getTorInfoReply()
         /* Use the first address that matches the one used for this control connection. If none do,
          * just use the first address and rely on the user to reconfigure if necessary (not a problem;
          * their setup is already very customized) */
+        if (!socketPath.isEmpty() && preferUnix) {
+            socksAddress = QHostAddress();
+            socksPort = 0;
+            socksSocketPath = socketPath;
+            break;
+        }
+
         if (socksAddress.isNull() || address == preferredAddress) {
             socksAddress = address;
             socksPort = port;
-            if (address == preferredAddress)
+            if (address == preferredAddress && !preferUnix)
                 break;
         }
     }
@@ -493,8 +521,11 @@ void TorControlPrivate::getTorInfoReply()
     /* It is not immediately an error to have no SOCKS address; when DisableNetwork is set there won't be a
      * listener yet. To handle that situation, we'll try to read the socks address again when TorReady state
      * is reached. */
-    if (!socksAddress.isNull()) {
-        qDebug().nospace() << "torctrl: SOCKS address is " << socksAddress.toString() << ":" << socksPort;
+    if (hasSocksInfo()) {
+        if (!socksSocketPath.isEmpty())
+            qDebug().nospace() << "torctrl: SOCKS address is unix:" << socksSocketPath;
+        else
+            qDebug().nospace() << "torctrl: SOCKS address is " << socksAddress.toString() << ":" << socksPort;
         emit q->connectivityChanged();
     }
 
@@ -508,6 +539,11 @@ void TorControlPrivate::getTorInfoReply()
     QByteArray bootstrap = command->get(QByteArray("status/bootstrap-phase")).toString().toLatin1();
     if (!bootstrap.isEmpty())
         updateBootstrap(splitQuotedStrings(bootstrap, ' '));
+}
+
+bool TorControlPrivate::hasSocksInfo()
+{
+    return !socksSocketPath.isEmpty() || (!socksAddress.isNull() && socksPort);
 }
 
 void TorControl::addHiddenService(HiddenService *service)
@@ -732,6 +768,8 @@ private slots:
             "DataDirectory",
             "HiddenServiceDir",
             "HiddenServicePort",
+            "ControlPort",
+            "SocksPort",
             0
         };
 

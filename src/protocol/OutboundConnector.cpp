@@ -246,8 +246,7 @@ void OutboundConnectorPrivate::onConnected()
         return;
     }
 
-    QSharedPointer<AbstractSocket> abstractSocket(new AbstractSocket(socket), &QObject::deleteLater);
-    connection = QSharedPointer<Connection>(new Connection(abstractSocket, Connection::ClientSide), &QObject::deleteLater);
+    connection = QSharedPointer<Connection>(new Connection(socket->socket(), Connection::ClientSide), &QObject::deleteLater);
 
     socket->setReconnectEnabled(false);
     socket = 0;

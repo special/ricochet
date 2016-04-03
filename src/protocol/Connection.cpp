@@ -118,11 +118,9 @@ bool Connection::isConnected() const
 QString Connection::serverHostname() const
 {
     QString hostname;
-    if (direction() == ClientSide) {
-        // For now, this must always be TCP, because it will be SOCKS.
-        Q_ASSERT(d->socket->tcpSocket());
-        hostname = d->socket->tcpSocket()->peerName();
-    } else if (direction() == ServerSide)
+    if (direction() == ClientSide)
+        hostname = d->socket->property("remoteHostname").toString();
+    else if (direction() == ServerSide)
         hostname = d->socket->property("localHostname").toString();
 
     if (!hostname.endsWith(QStringLiteral(".onion"))) {

@@ -32,21 +32,20 @@
 
 #include "TorSocket.h"
 #include "TorControl.h"
-#include <QNetworkProxy>
+#include "utils/Useful.h"
+#include <QtEndian>
 
 using namespace Tor;
 
 TorSocket::TorSocket(QObject *parent)
-    : QTcpSocket(parent)
+    : QObject(parent)
     , m_port(0)
     , m_reconnectEnabled(true)
     , m_maxInterval(900)
     , m_connectAttempts(0)
 {
-    connect(torControl, SIGNAL(connectivityChanged()), SLOT(connectivityChanged()));
-    connect(&m_connectTimer, SIGNAL(timeout()), SLOT(reconnect()));
-    connect(this, SIGNAL(disconnected()), SLOT(onFailed()));
-    connect(this, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(onFailed()));
+    connect(torControl, &TorControl::connectivityChanged, this, &TorSocket::connectivityChanged);
+    connect(&m_connectTimer, &QTimer::timeout, this, &TorSocket::reconnect);
 
     m_connectTimer.setSingleShot(true);
     connectivityChanged();
@@ -112,8 +111,7 @@ void TorSocket::reconnect()
 void TorSocket::connectivityChanged()
 {
     if (torControl->hasConnectivity()) {
-        setProxy(torControl->connectionProxy());
-        if (state() == QAbstractSocket::UnconnectedState)
+        if (!m_socket || m_socket->state() == QAbstractSocket::UnconnectedState)
             reconnect();
     } else {
         m_connectTimer.stop();
@@ -121,8 +119,7 @@ void TorSocket::connectivityChanged()
     }
 }
 
-void TorSocket::connectToHost(const QString &hostName, quint16 port, OpenMode openMode,
-        NetworkLayerProtocol protocol)
+void TorSocket::connectToHost(const QString &hostName, quint16 port)
 {
     m_host = hostName;
     m_port = port;
@@ -130,22 +127,35 @@ void TorSocket::connectToHost(const QString &hostName, quint16 port, OpenMode op
     if (!torControl->hasConnectivity())
         return;
 
-    if (proxy() != torControl->connectionProxy())
-        setProxy(torControl->connectionProxy());
+    qDebug() << "TorSocket: Creating new SOCKS socket for" << m_host;
+    m_socket = torControl->createSocksSocket();
+    connect(m_socket.data(), &AbstractSocket::connected, this, &TorSocket::sendSocksRequest);
+    connect(m_socket.data(), &AbstractSocket::errored, this, &TorSocket::onFailed);
+    connect(m_socket.data(), &AbstractSocket::disconnected, this, &TorSocket::onFailed);
+    connect(m_socket->device(), &QIODevice::readyRead, this, &TorSocket::handleSocksResponse);
 
-    QAbstractSocket::connectToHost(hostName, port, openMode, protocol);
+    emit socketChanged();
+
+    if (m_socket->state() == QAbstractSocket::ConnectedState) {
+        sendSocksRequest();
+    } else if (m_socket->state() == QAbstractSocket::UnconnectedState) {
+        onFailed();
+    }
 }
 
-void TorSocket::connectToHost(const QHostAddress &address, quint16 port, OpenMode openMode)
+void TorSocket::connectToHost(const QHostAddress &address, quint16 port)
 {
-    TorSocket::connectToHost(address.toString(), port, openMode);
+    TorSocket::connectToHost(address.toString(), port);
 }
 
 void TorSocket::onFailed()
 {
-    // Make sure the internal connection to the SOCKS proxy is closed
-    // Otherwise reconnect attempts will fail (#295)
-    close();
+    if (m_socket) {
+        disconnect(m_socket.data(), 0, this, 0);
+        disconnect(m_socket->device(), 0, this, 0);
+        m_socket->device()->close();
+        m_socket.reset();
+    }
 
     if (reconnectEnabled() && !m_connectTimer.isActive()) {
         m_connectAttempts++;
@@ -153,3 +163,64 @@ void TorSocket::onFailed()
         qDebug() << "Reconnecting socket to" << m_host << m_port << "in" << m_connectTimer.interval() / 1000 << "seconds";
     }
 }
+
+void TorSocket::sendSocksRequest()
+{
+    if (!m_socket || m_socket->state() != QAbstractSocket::ConnectedState) {
+        BUG() << "Trying to do a socks handshake without an open socket";
+        return;
+    }
+
+    static const char requestTemplate[] = {
+        4, /* socks version */
+        1, /* CONNECT command */
+        0, 0, /* port placeholder */
+        0, 0, 0, 1, /* IP placeholder */
+        0 /* empty userid */
+    };
+
+    QByteArray socksRequest(requestTemplate, sizeof(requestTemplate));
+    /* Overwrite port */
+    qToBigEndian(m_port, reinterpret_cast<uchar*>(socksRequest.data() + 2));
+    /* Append null-terminated hostname for socks4a */
+    socksRequest.append(m_host.toLatin1());
+    socksRequest.append(char(0));
+
+    int re = m_socket->device()->write(socksRequest);
+    if (re < socksRequest.size()) {
+        qDebug() << "Socket write to socks connection failed:" << m_socket->device()->errorString();
+        onFailed();
+        return;
+    }
+
+    m_socket->setProperty("remoteHostname", m_host);
+}
+
+void TorSocket::handleSocksResponse()
+{
+    if (!m_socket || m_socket->state() != QAbstractSocket::ConnectedState) {
+        BUG() << "Trying to do a socks handshake without an open socket";
+        return;
+    }
+
+    QByteArray socksResponse(8, 0);
+    int re = m_socket->device()->read(socksResponse.data(), socksResponse.size());
+    if (re < 8) {
+        qDebug() << "Socket read from socks handshake failed:" << m_socket->device()->errorString();
+        onFailed();
+        return;
+    }
+
+    if (socksResponse[0] != (char)0 || socksResponse[1] != (char)90) {
+        qDebug() << "Connection to" << m_host << "failed";
+        onFailed();
+        return;
+    }
+
+    // Disconnect from readyRead signal
+    disconnect(m_socket->device(), 0, this, 0);
+
+    // Connection is ready
+    emit connected();
+}
+

@@ -355,7 +355,10 @@ bool TorManagerPrivate::createDataDir(const QString &path)
 bool TorManagerPrivate::createDefaultTorrc(const QString &path)
 {
     static const char defaultTorrcContent[] =
-        "SocksPort auto\n"
+        /* Once it's available, we want to use OnionTrafficOnly for this
+         * port. Right now, tor can only do NoIPv4Traffic or NoIPv6Traffic,
+         * but not both, and still won't block DNS. See tor #18693. */
+        "SocksPort auto NoIPv4Traffic IPv6Traffic\n"
         "AvoidDiskWrites 1\n"
         "DisableNetwork 1\n"
         "__ReloadTorrcOnSIGHUP 0\n";

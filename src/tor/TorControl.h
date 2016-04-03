@@ -35,9 +35,9 @@
 
 #include <QObject>
 #include <QHostAddress>
+#include <QSharedPointer>
 #include "utils/PendingOperation.h"
-
-class QNetworkProxy;
+#include "utils/AbstractSocket.h"
 
 namespace Tor
 {
@@ -90,7 +90,8 @@ public:
     bool hasConnectivity() const;
     QHostAddress socksAddress() const;
     quint16 socksPort() const;
-    QNetworkProxy connectionProxy();
+    QString socksSocketPath() const;
+    QSharedPointer<AbstractSocket> createSocksSocket();
 
     /* Authentication */
     void setAuthPassword(const QByteArray &password);

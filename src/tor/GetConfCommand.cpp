@@ -77,7 +77,7 @@ void GetConfCommand::onReply(int statusCode, const QByteArray &data)
     QString key = QString::fromLatin1(data.mid(0, kep));
     QVariant value;
     if (kep >= 0)
-        value = QString::fromLatin1(unquotedString(data.mid(kep + 1)));
+        value = QString::fromLatin1(data.mid(kep + 1));
 
     m_lastKey = key;
     QVariantMap::iterator it = m_results.find(key);

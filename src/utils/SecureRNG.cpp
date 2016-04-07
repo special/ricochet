@@ -109,9 +109,13 @@ QByteArray SecureRNG::random(int size)
 
 QByteArray SecureRNG::randomPrintable(int length)
 {
+    static const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
     QByteArray re(length, 0);
-    for (int i = 0; i < re.size(); i++)
-        re[i] = randomInt(95) + 32;
+    for (int i = 0; i < re.size(); i++) {
+        Q_ASSERT(sizeof(charset) == 63);
+        re[i] = charset[randomInt(sizeof(charset) - 1)];
+    }
     return re;
 }
 

@@ -43,6 +43,7 @@ public:
     static void random(char *buf, int size);
     static QByteArray random(int size);
 
+    // Random a-zA-Z0-9
     static QByteArray randomPrintable(int length);
     static unsigned randomInt(unsigned max);
     static quint64 randomInt64(quint64 max);

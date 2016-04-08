@@ -37,7 +37,6 @@
 #include "core/ContactIDValidator.h"
 #include "protocol/Connection.h"
 #include "utils/Useful.h"
-#include "utils/SecureRNG.h"
 #include <QTcpServer>
 #include <QLocalServer>
 #include <QTcpSocket>
@@ -133,11 +132,8 @@ void UserIdentity::setupService()
 #ifdef Q_OS_UNIX
     socketPath = m_settings->read("localSocketPath").toString();
     // Only use the default socket path if an explicit port wasn't specified
-    if (socketPath.isEmpty() && !port) {
-        socketPath = Tor::TorManager::instance()->serviceSocketsPath();
-        socketPath += QStringLiteral("/ricochet_");
-        socketPath += QString::fromLatin1(SecureRNG::randomPrintable(6));
-    }
+    if (socketPath.isEmpty() && !port)
+        socketPath = Tor::TorManager::instance()->unixSocketPath(QStringLiteral("ricochet"));
 #endif
 
     if (port || socketPath.isEmpty()) {

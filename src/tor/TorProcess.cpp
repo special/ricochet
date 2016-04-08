@@ -31,6 +31,7 @@
  */
 
 #include "TorProcess_p.h"
+#include "TorManager.h"
 #include "utils/CryptoKey.h"
 #include "utils/SecureRNG.h"
 #include <QDir>
@@ -157,14 +158,18 @@ void TorProcess::start()
 #if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
     /* Use unix sockets for control */
     d->useControlSocket = true;
-    QString controlPath = d->socketPath(QStringLiteral("control"));
-    args << QStringLiteral("ControlPort") << QStringLiteral("unix:") + controlPath;
+    QString controlPath = d->controlSocketPath();
+    /* RelaxDirModeCheck is necessary in a corner case: if we can't use the config
+     * directory because it contains spaces (see TorManager::unixSocketPath),
+     * this socket may be placed in a world-readable location, and we can't be
+     * bothered to create and manage a subdirectory for it. */
+    args << QStringLiteral("ControlPort") << QStringLiteral("unix:") + controlPath + QStringLiteral(" RelaxDirModeCheck");
     if (QFile::exists(controlPath))
         QFile::remove(controlPath);
 
     /* Also set up a unix socket for SOCKS. See createDefaultTorrc for
      * an explanation of the flags. */
-    QString socksPath = d->socketPath(QStringLiteral("socks"));
+    QString socksPath = d->socksSocketPath();
     args << QStringLiteral("SocksPort") << QStringLiteral("unix:") + socksPath + QStringLiteral(" NoIPv4Traffic IPv6Traffic");
     if (QFile::exists(socksPath))
         QFile::remove(socksPath);
@@ -237,7 +242,21 @@ quint16 TorProcess::controlPort()
 
 QString TorProcess::controlSocketPath()
 {
-    return d->useControlSocket ? d->socketPath(QStringLiteral("control")) : QString();
+    return d->useControlSocket ? d->controlSocketPath() : QString();
+}
+
+QString TorProcessPrivate::controlSocketPath()
+{
+    if (m_controlSocketPath.isEmpty())
+        m_controlSocketPath = TorManager::instance()->unixSocketPath(QStringLiteral("control"));
+    return m_controlSocketPath;
+}
+
+QString TorProcessPrivate::socksSocketPath()
+{
+    if (m_socksSocketPath.isEmpty())
+        m_socksSocketPath = TorManager::instance()->unixSocketPath(QStringLiteral("socks"));
+    return m_socksSocketPath;
 }
 
 bool TorProcessPrivate::ensureFilesExist()
@@ -267,11 +286,6 @@ QString TorProcessPrivate::torrcPath() const
 QString TorProcessPrivate::controlPortFilePath() const
 {
     return QDir::toNativeSeparators(dataDir) + QDir::separator() + QStringLiteral("control-port");
-}
-
-QString TorProcessPrivate::socketPath(const QString &name) const
-{
-    return QDir::toNativeSeparators(QFileInfo(dataDir + QStringLiteral("/") + name).absoluteFilePath());
 }
 
 void TorProcessPrivate::processStarted()
@@ -315,7 +329,7 @@ void TorProcessPrivate::processReadable()
 void TorProcessPrivate::tryReadControlPort()
 {
     if (useControlSocket) {
-        if (QFile::exists(socketPath(QStringLiteral("control"))))
+        if (QFile::exists(controlSocketPath()))
             state = TorProcess::Ready;
     } else {
         QFile file(controlPortFilePath());

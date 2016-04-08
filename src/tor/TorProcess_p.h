@@ -64,8 +64,10 @@ public:
 
     QString torrcPath() const;
     QString controlPortFilePath() const;
-    QString socketPath(const QString &name) const;
     bool ensureFilesExist();
+
+    QString controlSocketPath();
+    QString socksSocketPath();
 
 public slots:
     void processStarted();
@@ -73,6 +75,10 @@ public slots:
     void processError(QProcess::ProcessError error);
     void processReadable();
     void tryReadControlPort();
+
+private:
+    QString m_controlSocketPath;
+    QString m_socksSocketPath;
 };
 
 }

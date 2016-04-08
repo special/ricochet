@@ -35,6 +35,7 @@
 #include "TorControl.h"
 #include "GetConfCommand.h"
 #include "utils/Settings.h"
+#include "utils/SecureRNG.h"
 #include <QFile>
 #include <QDir>
 #include <QCoreApplication>
@@ -122,14 +123,21 @@ void TorManager::setDataDirectory(const QString &path)
         d->dataDir.append(QLatin1Char('/'));
 }
 
-QString TorManager::serviceSocketsPath() const
+QString TorManager::unixSocketPath() const
 {
 #if defined(Q_OS_UNIX)
     /* For bundled Tor, use the configuration path. This function may
      * be called before Tor is started, so we can't check whether the
      * TorProcess exists for this. */
-    if (!d->isSystemTorConfigured())
-        return QFileInfo(SettingsObject::defaultFile()->filePath()).absolutePath();
+    if (!d->isSystemTorConfigured()) {
+        QString path = QFileInfo(SettingsObject::defaultFile()->filePath()).absolutePath();
+        /* Tor cannot handle unix socket paths containing spaces; see tor #18753. */
+        if (path.contains(QLatin1Char(' '))) {
+            qWarning() << "Using alternative path for unix sockets because bundled path contains spaces";
+        } else {
+            return path;
+        }
+    }
 
     /* XXX As an improvement, we could use the runtime path if the
      * tor process is running as the same user, but this would require
@@ -148,6 +156,14 @@ QString TorManager::serviceSocketsPath() const
     BUG() << "Local sockets are not supported on this platform";
     return QString();
 #endif
+}
+
+QString TorManager::unixSocketPath(const QString &baseName) const
+{
+    return QStringLiteral("%1/%2_%3")
+        .arg(unixSocketPath())
+        .arg(baseName)
+        .arg(QString::fromLatin1(SecureRNG::randomPrintable(6)));
 }
 
 bool TorManager::configurationNeeded() const

@@ -1,10 +1,10 @@
 import QtQuick 2.0
 import QtQuick.Controls 1.0
 import im.ricochet 1.0
+import "style.js" as Style
 
-Rectangle {
+Item {
     id: delegate
-    color: "transparent"
     width: parent.width
     height: nameLabel.height + 8
 
@@ -12,6 +12,18 @@ Rectangle {
     onHighlightedChanged: {
         if (renameMode)
             renameMode = false
+    }
+
+    Rectangle {
+        anchors {
+            left: nameLabel.left
+            top: nameLabel.baseline
+            topMargin: 4
+        }
+        width: nameLabel.paintedWidth
+        height: 1.5
+        color: Style.primaryBlue
+        visible: delegate.highlighted
     }
 
     Label {
@@ -27,7 +39,8 @@ Rectangle {
         textFormat: Text.PlainText
         elide: Text.ElideRight
         font.pointSize: styleHelper.pointSize
-        color: "black"
+        font.family: Style.fontInterface
+        color: Style.almostBlack
         opacity: model.status === ContactUser.Online ? 1 : 0.8
     }
 
@@ -96,6 +109,7 @@ Rectangle {
                 verticalCenter: nameLabel.verticalCenter
             }
             text: model.contact.nickname
+            font.family: Style.fontInterface
             onAccepted: {
                 model.contact.nickname = text
                 delegate.renameMode = false

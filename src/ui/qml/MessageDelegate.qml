@@ -1,6 +1,7 @@
 import QtQuick 2.0
 import QtQuick.Controls 1.0
 import im.ricochet 1.0
+import "style.js" as Style
 
 Column {
     id: delegate
@@ -27,6 +28,7 @@ Column {
                 else
                     return Qt.formatDateTime(model.timestamp, Qt.DefaultLocaleShortDate)
             }
+            font.family: Style.fontInterface
             textFormat: Text.PlainText
             width: background.parent.width
             elide: Text.ElideRight
@@ -53,46 +55,45 @@ Column {
 
     Rectangle {
         id: background
-        width: Math.max(30, textField.width + 12)
-        height: textField.height + 12
-        x: model.isOutgoing ? parent.width - width - 11 : 10
+        width: Math.max(__xPadding*3, textField.width + (__xPadding*2))
+        height: textField.height + (__yPadding*2)
+        x: model.isOutgoing ? parent.width - width - __xMargin : __xMargin
+        radius: 8
 
-        property int __maxWidth: parent.width * 0.8
+        opacity: (model.status === ConversationModel.Sending || model.status === ConversationModel.Queued || model.status === ConversationModel.Error) ? 0.6 : 1
+        layer.enabled: true
+        Behavior on opacity { NumberAnimation {} }
 
-        color: (model.status === ConversationModel.Error) ? "#ffdcc4" : ( model.isOutgoing ? "#eaeced" : "#c4e7ff" )
-        Behavior on color { ColorAnimation { } }
+        property int __maxWidth: parent.width * 0.6
+        property int __xPadding: 12
+        property int __yPadding: 8
+        property int __xMargin: 30
 
-        Rectangle {
+        color: (model.status === ConversationModel.Error) ? "#ffdcc4" : (model.isOutgoing ? Style.primaryBlue : Style.lightGrey)
+
+        /*Rectangle {
             rotation: 45
             width: 10
             height: 10
-            x: model.isOutgoing ? parent.width - 20 : 10
+            x: model.isOutgoing ? parent.width - 24 : 14
             y: model.isOutgoing ? parent.height - 5 : -5
             color: parent.color
-        }
-
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: 1
-            opacity: (model.status === ConversationModel.Sending || model.status === ConversationModel.Queued || model.status === ConversationModel.Error) ? 1 : 0
-            visible: opacity > 0
-            color: Qt.lighter(parent.color, 1.15)
-
-            Behavior on opacity { NumberAnimation { } }
-        }
+        }*/
 
         TextEdit {
             id: textField
             width: Math.min(implicitWidth, background.__maxWidth)
             height: contentHeight
             x: Math.round((parent.width - width) / 2)
-            y: 6
+            y: background.__yPadding
 
             renderType: Text.NativeRendering
             textFormat: TextEdit.RichText
             selectionColor: palette.highlight
             selectedTextColor: palette.highlightedText
             font.pointSize: styleHelper.pointSize
+            font.family: Style.fontContentText
+            color: (model.isOutgoing ? Style.almostWhite : Style.almostBlack)
 
             wrapMode: TextEdit.Wrap
             readOnly: true
@@ -109,7 +110,7 @@ Column {
                 if (textField.hasOwnProperty('linkHovered'))
                     textField.linkHovered.connect(function() { })
             }
-            
+
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.RightButton

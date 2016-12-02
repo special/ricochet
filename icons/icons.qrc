@@ -2,5 +2,8 @@
     <qresource prefix="/icons">
         <file>ricochet.svg</file>
         <file>ricochet_icons.ttf</file>
+        <file>Rubik-Regular.ttf</file>
+        <file>Rubik-Medium.ttf</file>
+        <file>LiberationSans-Regular.ttf</file>
     </qresource>
 </RCC>

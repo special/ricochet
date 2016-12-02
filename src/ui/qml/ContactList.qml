@@ -74,6 +74,8 @@ ScrollView {
                     font.pixelSize: 16
                     font.bold: true
                     font.capitalization: Font.SmallCaps
+                    font.family: Style.fontInterface
+                    font.weight: Font.Medium
                     textFormat: Text.PlainText
                     color: Style.almostBlack
                     text: qsTr("Online").toLowerCase()
@@ -88,6 +90,7 @@ ScrollView {
                     x: 40
                     textFormat: Text.PlainText
                     font.pointSize: styleHelper.pointSize
+                    font.family: Style.fontInterface
                     color: Style.almostBlack
                     text: userIdentity.contactID
                 }
@@ -96,6 +99,7 @@ ScrollView {
                     x: 40
                     textFormat: Text.PlainText
                     font.pointSize: styleHelper.pointSize - 2
+                    font.family: Style.fontInterface
                     color: Style.primaryBlue
                     text: qsTr("Copy My Address")
                 }
@@ -120,8 +124,11 @@ ScrollView {
                 font.pixelSize: 16
                 font.bold: true
                 font.capitalization: Font.SmallCaps
+                font.family: Style.fontInterface
+                font.weight: Font.Medium
                 textFormat: Text.PlainText
                 color: Style.almostBlack
+                opacity: section == ContactUser.Online ? 1 : 0.8
 
                 text: {
                     // Translation strings are uppercase for legacy reasons, and because they

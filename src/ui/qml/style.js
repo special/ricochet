@@ -8,3 +8,6 @@ var almostBlack = "#101822"
 var chatAreaBackground = "#ffffff"
 
 var inputAreaHeight = 70
+
+var fontInterface = "Rubik"
+var fontContent = "Liberation Sans"

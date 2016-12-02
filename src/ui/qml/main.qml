@@ -90,6 +90,18 @@ QtObject {
             source: "qrc:/icons/ricochet_icons.ttf"
         },
 
+        FontLoader {
+            source: "qrc:/icons/Rubik-Regular.ttf"
+        },
+
+        FontLoader {
+            source: "qrc:/icons/Rubik-Medium.ttf"
+        },
+
+        FontLoader {
+            source: "qrc:/icons/LiberationSans-Regular.ttf"
+        },
+
         Item {
             id: styleHelper
             visible: false

@@ -63,6 +63,7 @@ Rectangle {
                 text: qsTr("Add Contact")
                 color: Style.primaryBlue
                 font.pixelSize: 12
+                font.family: Style.fontInterface
             }
 
             Loader {
@@ -113,6 +114,7 @@ Rectangle {
                 text: qsTr("Settings")
                 color: Style.primaryBlue
                 font.pixelSize: 12
+                font.family: Style.fontInterface
             }
         }
     }

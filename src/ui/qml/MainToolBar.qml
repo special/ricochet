@@ -7,7 +7,7 @@ import "style.js" as Style
 
 Rectangle {
     Layout.fillWidth: true
-    Layout.preferredHeight: 70
+    Layout.preferredHeight: Style.inputAreaHeight
     color: Qt.lighter(Style.lightGrey, 1.02)
 
     property Action addContact: addContactAction

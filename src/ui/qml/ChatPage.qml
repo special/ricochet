@@ -1,7 +1,9 @@
 import QtQuick 2.0
 import QtQuick.Controls 1.0
+import QtQuick.Controls.Styles 1.3
 import QtQuick.Layouts 1.0
 import im.ricochet 1.0
+import "style.js" as Style
 
 FocusScope {
     id: chatPage
@@ -27,16 +29,19 @@ FocusScope {
         onUnreadCountChanged: if (active) conversationModel.resetUnreadCount()
     }
 
+    Rectangle {
+        anchors.fill: parent
+        color: Style.chatAreaBackground
+    }
+
     RowLayout {
         id: infoBar
         anchors {
             top: parent.top
             left: parent.left
-            leftMargin: 4
             right: parent.right
-            rightMargin: 4
+            margins: 15
         }
-        height: implicitHeight + 8
         spacing: 8
 
         PresenceIcon {
@@ -55,61 +60,42 @@ FocusScope {
         }
     }
 
-    Rectangle {
-        anchors {
-            left: parent.left
-            right: parent.right
-            top: infoBar.top
-            bottom: infoBar.bottom
-        }
-        color: palette.base
-        z: -1
-
-        Column {
-            anchors {
-                top: parent.bottom
-                left: parent.left
-                right: parent.right
-            }
-            Rectangle { width: parent.width; height: 1; color: palette.midlight; }
-            Rectangle { width: parent.width; height: 1; color: palette.window; }
-        }
-    }
-
     ChatMessageArea {
         anchors {
             top: infoBar.bottom
             topMargin: 2
             left: parent.left
             right: parent.right
-            bottom: statusBar.top
+            bottom: inputArea.top
         }
         model: conversationModel
     }
 
-    StatusBar {
-        id: statusBar
+    Item {
+        id: inputArea
         anchors {
             left: parent.left
+            leftMargin: 16
             right: parent.right
+            rightMargin: 16
             bottom: parent.bottom
         }
-        height: statusLayout.height + 8
+        height: Math.max(Style.inputAreaHeight, statusLayout.height + 8)
 
+        // XXX Is this RowLayout actually necessary? Looks like it's used for the auto-sizing textarea..
         RowLayout {
             id: statusLayout
-            width: statusBar.width - 8
-            y: 2
+            width: inputArea.width
+            anchors.verticalCenter: inputArea.verticalCenter
 
             TextArea {
                 id: textInput
                 Layout.fillWidth: true
-                y: 2
                 // This ridiculous incantation enables an automatically sized TextArea
                 Layout.preferredHeight: mapFromItem(flickableItem, 0, 0).y * 2 +
-                                        Math.max(styleHelper.textHeight + 2*edit.textMargin, flickableItem.contentHeight)
-                Layout.maximumHeight: (styleHelper.textHeight * 4) + (2 * edit.textMargin)
-                textMargin: 3
+                                        Math.max(styleHelper.textHeight + 2*edit.textMargin, flickableItem.contentHeight) + 1
+                Layout.maximumHeight: (styleHelper.textHeight * 2) + (2 * edit.textMargin) + 5
+                textMargin: 8
                 wrapMode: TextEdit.Wrap
                 textFormat: TextEdit.PlainText
                 font.pointSize: styleHelper.pointSize
@@ -155,6 +141,23 @@ FocusScope {
                 onLengthChanged: {
                     if (textInput.length > 2000)
                         textInput.remove(2000, textInput.length)
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: "transparent"
+                    border {
+                        color: Qt.darker(Style.lightGrey, 1.1)
+                        width: 1
+                    }
+                    radius: 16
+                }
+
+                style: TextAreaStyle {
+                    textColor: Style.almostBlack
+                    backgroundColor: Style.chatAreaBackground
+                    frame: Item {}
+                    corner: Item {}
                 }
             }
         }

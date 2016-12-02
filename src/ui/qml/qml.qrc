@@ -33,6 +33,7 @@
         <file>GeneralPreferences.qml</file>
         <file>AudioNotifications.qml</file>
         <file>utils.js</file>
+        <file>style.js</file>
     </qresource>
     <qresource prefix="/text">
         <file>../../../LICENSE</file>

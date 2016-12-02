@@ -144,7 +144,7 @@ static QString appBundlePath()
 // preexisting values, therefore this is best used on a fresh object.
 static void loadDefaultSettings(SettingsFile *settings)
 {
-    settings->root()->write("ui.combinedChatWindow", true);
+    Q_UNUSED(settings);
 }
 
 static bool initSettings(SettingsFile *settings, QLockFile **lockFile, QString &errorMessage)

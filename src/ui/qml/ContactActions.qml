@@ -1,18 +1,11 @@
 import QtQuick 2.0
 import QtQuick.Controls 1.0
 import QtQuick.Dialogs 1.1
-import "ContactWindow.js" as ContactWindow
 
 Item {
     id: contactMenu
 
     property QtObject contact
-
-    function openWindow() {
-        var window = ContactWindow.getWindow(contact)
-        window.raise()
-        window.requestActivate()
-    }
 
     function removeContact() {
         removeContactDialog.active = true

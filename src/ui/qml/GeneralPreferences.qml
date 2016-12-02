@@ -10,14 +10,6 @@ ColumnLayout {
     }
 
     CheckBox {
-        text: qsTr("Use a single window for conversations")
-        checked: uiSettings.data.combinedChatWindow || false
-        onCheckedChanged: {
-            uiSettings.write("combinedChatWindow", checked)
-        }
-    }
-
-    CheckBox {
         text: qsTr("Open links in default browser without prompting")
         checked: uiSettings.data.alwaysOpenBrowser || false
         onCheckedChanged: {

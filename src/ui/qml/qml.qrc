@@ -3,7 +3,6 @@
         <file>main.qml</file>
         <file>AddContactDialog.qml</file>
         <file>ChatMessageArea.qml</file>
-        <file>ChatWindow.qml</file>
         <file>ContactActions.qml</file>
         <file>ContactList.qml</file>
         <file>ContactListDelegate.qml</file>
@@ -13,7 +12,6 @@
         <file>ContactRequestDialog.qml</file>
         <file>ContactRequestFields.qml</file>
         <file>TorStateWidget.qml</file>
-        <file>ContactWindow.js</file>
         <file>NetworkSetupWizard.qml</file>
         <file>TorConfigurationPage.qml</file>
         <file>TorBootstrapStatus.qml</file>

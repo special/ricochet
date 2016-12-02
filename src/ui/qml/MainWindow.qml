@@ -3,21 +3,17 @@ import QtQuick.Window 2.0
 import QtQuick.Controls 1.0
 import QtQuick.Layouts 1.0
 import im.ricochet 1.0
-import "ContactWindow.js" as ContactWindow
 
 ApplicationWindow {
     id: window
     title: "Ricochet"
     visibility: Window.AutomaticVisibility
 
-    width: 250
+    width: 650
     height: 400
     minimumHeight: 400
-    minimumWidth: uiSettings.data.combinedChatWindow ? 650 : 250
-    maximumWidth: uiSettings.data.combinedChatWindow ? (1 << 24) - 1 : 250
-
-    onMinimumWidthChanged: width = Math.max(width, minimumWidth)
-    onMaximumWidthChanged: width = Math.min(width, maximumWidth)
+    minimumWidth: 650
+    maximumWidth: (1 << 24) - 1
 
     // OS X Menu
     Loader {
@@ -39,11 +35,8 @@ ApplicationWindow {
             if (unreadCount > 0) {
                 if (audioNotifications !== null)
                     audioNotifications.message.play()
-                var w = window
-                if (!uiSettings.data.combinedChatWindow || ContactWindow.windowExists(user))
-                    w = ContactWindow.getWindow(user)
                 // On OS X, avoid bouncing the dock icon forever
-                w.alert(Qt.platform.os == "osx" ? 1000 : 0)
+                window.alert(Qt.platform.os == "osx" ? 1000 : 0)
             }
         }
         onContactStatusChanged: {
@@ -59,8 +52,8 @@ ApplicationWindow {
 
         ColumnLayout {
             spacing: 0
-            Layout.preferredWidth: combinedChatView.visible ? 220 : 0
-            Layout.fillWidth: !combinedChatView.visible
+            Layout.preferredWidth: 220
+            Layout.fillWidth: false
 
             MainToolBar {
                 id: toolBar
@@ -80,8 +73,6 @@ ApplicationWindow {
                     onContactActivated: {
                         if (contact.status === ContactUser.RequestPending || contact.status === ContactUser.RequestRejected) {
                             actions.openPreferences()
-                        } else if (!uiSettings.data.combinedChatWindow) {
-                            actions.openWindow()
                         }
                     }
                 }
@@ -96,15 +87,13 @@ ApplicationWindow {
         }
 
         Rectangle {
-            visible: combinedChatView.visible
             width: 1
             Layout.fillHeight: true
             color: Qt.darker(palette.window, 1.5)
         }
 
         PageView {
-            id: combinedChatView
-            visible: uiSettings.data.combinedChatWindow || false
+            id: chatView
             Layout.fillWidth: true
             Layout.fillHeight: true
 
@@ -135,8 +124,8 @@ ApplicationWindow {
         id: retakeFocus
         interval: 1
         onTriggered: {
-            if (combinedChatView.currentPage !== null)
-                combinedChatView.currentPage.forceActiveFocus()
+            if (chatView.currentPage !== null)
+                chatView.currentPage.forceActiveFocus()
         }
     }
 

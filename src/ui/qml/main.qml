@@ -3,7 +3,6 @@ import QtQuick.Controls 1.0
 import QtQuick.Layouts 1.0
 import QtQuick.Window 2.0
 import im.ricochet 1.0
-import "ContactWindow.js" as ContactWindow
 
 // Root non-graphical object providing window management and other logic.
 QtObject {
@@ -45,24 +44,6 @@ QtObject {
     property QtObject audioNotifications: audioNotificationLoader.item
 
     Component.onCompleted: {
-        ContactWindow.createWindow = function(user) {
-            var re = createDialog("ChatWindow.qml", { 'contact': user })
-            re.x = mainWindow.x + mainWindow.width + 10
-            re.y = mainWindow.y + (mainWindow.height / 2) - (re.height / 2)
-
-            var screens = uiMain.screens
-            if ((mainWindow.Screen !== undefined) && (mainWindow.Screen.name in screens)) {
-                var currentScreen = screens[mainWindow.Screen.name]
-                var offsetX = currentScreen.left
-                var offsetY = currentScreen.top
-                re.x = re.x - offsetX + re.width <= currentScreen.width ? re.x : mainWindow.x - re.width - 10
-                re.y = re.y - offsetY + re.height <= currentScreen.height ? re.y : currentScreen.height + offsetY - re.height - 10
-            }
-
-            re.visible = true
-            return re
-        }
-
         if (torInstance.configurationNeeded) {
             var object = createDialog("NetworkSetupWizard.qml")
             object.networkReady.connect(function() {

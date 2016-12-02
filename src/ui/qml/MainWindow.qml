@@ -52,14 +52,8 @@ ApplicationWindow {
 
         ColumnLayout {
             spacing: 0
-            Layout.preferredWidth: 220
+            Layout.preferredWidth: 240
             Layout.fillWidth: false
-
-            MainToolBar {
-                id: toolBar
-                // Needed to allow bubble to appear over contact list
-                z: 3
-            }
 
             Item {
                 Layout.fillHeight: true
@@ -84,12 +78,12 @@ ApplicationWindow {
                     source: Qt.resolvedUrl("OfflineStateItem.qml")
                 }
             }
-        }
 
-        Rectangle {
-            width: 1
-            Layout.fillHeight: true
-            color: Qt.darker(palette.window, 1.5)
+            MainToolBar {
+                id: toolBar
+                // Needed to allow bubble to appear over contact list
+                z: 3
+            }
         }
 
         PageView {

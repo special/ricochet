@@ -2,6 +2,7 @@ import QtQuick 2.0
 import QtQuick.Controls 1.0
 import QtQuick.Layouts 1.0
 import im.ricochet 1.0
+import "style.js" as Style
 
 ScrollView {
     id: scroll
@@ -10,7 +11,7 @@ ScrollView {
         Rectangle {
             anchors.fill: scroll
             z: -1
-            color: palette.base
+            color: Style.lightGrey
         },
         ContactsModel {
             id: contactsModel
@@ -51,22 +52,76 @@ ScrollView {
             }
         ]
 
+        header: Column {
+            width: parent.width
+            spacing: 14
+
+            Item { width: 1; height: 1 }
+
+            Row {
+                x: 40 - presenceIcon.width - spacing
+                spacing: 8
+
+                PresenceIcon {
+                    id: presenceIcon
+                    anchors.verticalCenter: presenceLabel.verticalCenter
+                    anchors.verticalCenterOffset: 1
+                    status: 0
+                }
+
+                Label {
+                    id: presenceLabel
+                    font.pixelSize: 16
+                    font.bold: true
+                    font.capitalization: Font.SmallCaps
+                    textFormat: Text.PlainText
+                    color: Style.almostBlack
+                    text: qsTr("Online").toLowerCase()
+                }
+            }
+
+            Column {
+                spacing: 2
+
+                Label {
+                    id: contactIdLabel
+                    x: 40
+                    textFormat: Text.PlainText
+                    font.pointSize: styleHelper.pointSize
+                    color: Style.almostBlack
+                    text: userIdentity.contactID
+                }
+
+                Label {
+                    x: 40
+                    textFormat: Text.PlainText
+                    font.pointSize: styleHelper.pointSize - 2
+                    color: Style.primaryBlue
+                    text: qsTr("Copy My Address")
+                }
+            }
+
+            Rectangle {
+                x: 40
+                width: contactIdLabel.width
+                height: 1
+                color: Qt.darker(Style.lightGrey, 1.2)
+            }
+        }
+
         section.property: "status"
-        section.delegate: Row {
-            width: parent.width - x
-            height: label.height + 4
-            x: 8
-            spacing: 6
+        section.delegate: Item {
+            x: 40
+            height: label.height + 12
 
             Label {
                 id: label
-                y: 2
-
-                font.pointSize: styleHelper.pointSize
+                y: 6
+                font.pixelSize: 16
                 font.bold: true
                 font.capitalization: Font.SmallCaps
                 textFormat: Text.PlainText
-                color: "#3f454a"
+                color: Style.almostBlack
 
                 text: {
                     // Translation strings are uppercase for legacy reasons, and because they
@@ -80,18 +135,6 @@ ScrollView {
                         case ContactUser.Outdated: return qsTr("Outdated").toLowerCase()
                     }
                 }
-            }
-
-            Rectangle {
-                height: 1
-                width: parent.width - x
-                anchors {
-                    top: label.verticalCenter
-                    topMargin: 1
-                }
-
-                color: "black"
-                opacity: 0.1
             }
         }
 

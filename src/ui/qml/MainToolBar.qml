@@ -3,12 +3,12 @@ import QtQuick.Controls 1.0
 import QtQuick.Layouts 1.0
 import QtQuick.Controls.Styles 1.0
 import im.ricochet 1.0
+import "style.js" as Style
 
-ToolBar {
-    Layout.minimumWidth: 200
+Rectangle {
     Layout.fillWidth: true
-    // Necessary to avoid oversized toolbars, e.g. OS X with Qt 5.4.1
-    implicitHeight: toolBarLayout.height + __style.padding.top + __style.padding.bottom
+    Layout.preferredHeight: 70
+    color: Qt.lighter(Style.lightGrey, 1.02)
 
     property Action addContact: addContactAction
     property Action preferences: preferencesAction
@@ -30,41 +30,40 @@ ToolBar {
         }
     ]
 
-    Component {
-        id: iconButtonStyle
-
-        ButtonStyle {
-            background: Item { }
-            label: Text {
-                text: control.text
-                font.family: iconFont.name
-                font.pixelSize: height
-                horizontalAlignment: Qt.AlignHCenter
-                renderType: Text.QtRendering
-                color: "black"
-            }
-        }
-    }
-
     RowLayout {
-        id: toolBarLayout
-        width: parent.width
+        anchors.fill: parent
+        spacing: 0
 
-        TorStateWidget {
-            anchors.verticalCenter: parent.verticalCenter
-        }
-
-        Item {
+        MouseArea {
             Layout.fillWidth: true
-            height: 1
-        }
+            Layout.fillHeight: true
 
-        ToolButton {
-            id: addContactButton
-            implicitHeight: 24
-            action: addContactAction
-            style: iconButtonStyle
-            text: "\ue810" // iconFont plus symbol
+            onClicked: addContactAction.trigger()
+
+            Text {
+                id: addContactIcon
+                anchors {
+                    centerIn: parent
+                    verticalCenterOffset: -6
+                }
+                font.family: iconFont.name
+                renderType: Text.QtRendering
+                text: "\ue810"
+                font.pixelSize: 16
+                horizontalAlignment: Text.AlignHCenter
+                color: Style.primaryBlue
+            }
+
+            Label {
+                anchors {
+                    top: addContactIcon.bottom
+                    topMargin: 4
+                    horizontalCenter: addContactIcon.horizontalCenter
+                }
+                text: qsTr("Add Contact")
+                color: Style.primaryBlue
+                font.pixelSize: 12
+            }
 
             Loader {
                 id: emptyState
@@ -77,11 +76,44 @@ ToolBar {
             }
         }
 
-        ToolButton {
-            action: preferencesAction
-            implicitHeight: 24
-            style: iconButtonStyle
-            text: "\ue803" // iconFont gear
+        Rectangle {
+            Layout.fillHeight: true
+            Layout.topMargin: 10
+            Layout.bottomMargin: 10
+            width: 1
+            color: Qt.darker(Style.lightGrey, 1.1)
+        }
+
+        MouseArea {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            onClicked: preferencesAction.trigger()
+
+            Text {
+                id: preferencesIcon
+                anchors {
+                    centerIn: parent
+                    verticalCenterOffset: -6
+                }
+                font.family: iconFont.name
+                renderType: Text.QtRendering
+                text: "\ue803"
+                font.pixelSize: 16
+                horizontalAlignment: Text.AlignHCenter
+                color: Style.primaryBlue
+            }
+
+            Label {
+                anchors {
+                    top: preferencesIcon.bottom
+                    topMargin: 4
+                    horizontalCenter: preferencesIcon.horizontalCenter
+                }
+                text: qsTr("Settings")
+                color: Style.primaryBlue
+                font.pixelSize: 12
+            }
         }
     }
 }

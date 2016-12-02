@@ -4,7 +4,7 @@ import im.ricochet 1.0
 
 Rectangle {
     id: delegate
-    color: highlighted ? "#c4e7ff" : "white"
+    color: "transparent"
     width: parent.width
     height: nameLabel.height + 8
 
@@ -14,21 +14,11 @@ Rectangle {
             renameMode = false
     }
 
-    PresenceIcon {
-        id: presenceIcon
-        anchors {
-            left: parent.left
-            leftMargin: 20
-            verticalCenter: nameLabel.verticalCenter
-        }
-        status: model.status
-    }
-
     Label {
         id: nameLabel
         anchors {
-            left: presenceIcon.right
-            leftMargin: 6
+            left: delegate.left
+            leftMargin: 40
             right: unreadBadge.left
             rightMargin: 8
             verticalCenter: parent.verticalCenter

@@ -1,0 +1,68 @@
+syntax = "proto3";
+package ricochet;
+
+// XXX Using integer contact IDs seems dangerous, and it's especially a
+// problem that 0 is a valid contact ID. Switch to UUID? Or use address?
+
+message Contact {
+    int32 id = 1;
+    string address = 2;
+    string nickname = 3;
+    string whenCreated = 4;
+    string lastConnected = 5;
+    ContactRequest request = 6;
+
+    enum Status {
+        UNKNOWN = 0;
+        OFFLINE = 1;
+        ONLINE = 2;
+        REQUEST = 3;
+        REJECTED = 4;
+    }
+    Status status = 10;
+}
+
+message ContactRequest {
+    enum Direction {
+        INBOUND = 0;
+        OUTBOUND = 1;
+    }
+    Direction direction = 1;
+    string address = 2;
+    string nickname = 3;
+    string text = 4;
+    string fromNickname = 5;
+}
+
+message MonitorContactsRequest {
+}
+
+message ContactEvent {
+    enum Type {
+        NULL = 0;
+        POPULATE = 1;
+        ADD = 2;
+        UPDATE = 3;
+        DELETE = 4;
+    }
+    Type type = 1;
+
+    oneof subject {
+        Contact contact = 2;
+        ContactRequest request = 3;
+    }
+}
+
+message AddContactReply {
+}
+
+message DeleteContactRequest {
+    int32 id = 1;
+    string address = 2;
+}
+
+message DeleteContactReply {
+}
+
+message RejectInboundRequestReply {
+}

@@ -234,6 +234,13 @@ PROTOS += src/protocol/ControlChannel.proto \
     src/protocol/ChatChannel.proto \
     src/protocol/ContactRequestChannel.proto
 
+GRPC_PROTOS += src/rpc/contact.proto \
+    src/rpc/conversation.proto \
+    src/rpc/core.proto \
+    src/rpc/identity.proto \
+    src/rpc/network.proto
+PROTOS += $$GRPC_PROTOS
+
 # QML
 RESOURCES += src/ui/qml/qml.qrc \
     icons/icons.qrc \

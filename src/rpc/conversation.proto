@@ -1,0 +1,56 @@
+syntax = "proto3";
+package ricochet;
+
+message ConversationEvent {
+    enum Type {
+        NULL = 0;
+        POPULATE = 1;
+        RECEIVE = 2;
+        SEND = 3;
+        UPDATE = 4;
+    }
+    Type type = 1;
+
+    Message msg = 2;
+}
+
+message MonitorConversationsRequest {
+}
+
+message Entity {
+    // contactId and address MAY be unspecified for self
+    int32 contactId = 1;
+    string address = 2;
+    bool isSelf = 3;
+}
+
+message Message {
+    Entity sender = 1;
+    Entity recipient = 2;
+    int64 timestamp = 3;
+    // Identifiers are unique for the tuple of (sender, recipient, direction)
+    // within a single session, and should be randomized between sessions to
+    // reduce the chance of collision.
+    uint64 identifier = 4;
+
+    enum Status {
+        NULL = 0;
+        ERROR = 1;
+        // Outbound
+        QUEUED = 2;
+        SENDING = 3;
+        DELIVERED = 4;
+        // Inbound
+        UNREAD = 5;
+        READ = 6;
+    }
+    Status status = 5;
+
+    string text = 6;
+}
+
+message MarkConversationReadRequest {
+    Entity entity = 1;
+    uint64 lastRecvIdentifier = 2;
+}
+

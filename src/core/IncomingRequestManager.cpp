@@ -44,19 +44,6 @@ IncomingRequestManager::IncomingRequestManager(ContactsManager *c)
 {
     connect(this, SIGNAL(requestAdded(IncomingContactRequest*)), this, SIGNAL(requestsChanged()));
     connect(this, SIGNAL(requestRemoved(IncomingContactRequest*)), this, SIGNAL(requestsChanged()));
-
-    auto attachChannel = [this](Protocol::Channel *channel) {
-        if (Protocol::ContactRequestChannel *req = qobject_cast<Protocol::ContactRequestChannel*>(channel)) {
-            connect(req, &Protocol::ContactRequestChannel::requestReceived, this, &IncomingRequestManager::requestReceived);
-        }
-    };
-
-    // Attach to any ContactRequestChannel on an incoming connection for this identity
-    connect(contacts->identity, &UserIdentity::incomingConnection, this,
-        [this,attachChannel](Protocol::Connection *connection) {
-            connect(connection, &Protocol::Connection::channelCreated, this, attachChannel);
-        }
-    );
 }
 
 void IncomingRequestManager::loadRequests()
@@ -168,17 +155,15 @@ void IncomingRequestManager::removeRequest(IncomingContactRequest *request)
 
 void IncomingRequestManager::addRejectedHost(const QByteArray &hostname)
 {
-    SettingsObject *settings = contacts->identity->settings();
-    QJsonArray blacklist = settings->read<QJsonArray>("hostnameBlacklist");
+    QJsonArray blacklist;
     if (!blacklist.contains(QString::fromLatin1(hostname))) {
         blacklist.append(QString::fromLatin1(hostname));
-        settings->write("hostnameBlacklist", blacklist);
     }
 }
 
 bool IncomingRequestManager::isHostnameRejected(const QByteArray &hostname) const
 {
-    QJsonArray blacklist = contacts->identity->settings()->read<QJsonArray>("hostnameBlacklist");
+    QJsonArray blacklist;
     return blacklist.contains(QString::fromLatin1(hostname));
 }
 
@@ -284,7 +269,7 @@ void IncomingContactRequest::setChannel(Protocol::ContactRequestChannel *channel
      * ours too - channels are always owned by the connection.
      */
     qDebug() << "Assigning connection to IncomingContactRequest from" << m_hostname;
-    QSharedPointer<Protocol::Connection> newConnection = manager->contacts->identity->takeIncomingConnection(channel->connection());
+    QSharedPointer<Protocol::Connection> newConnection;
     if (!newConnection) {
         BUG() << "Failed taking ownership of connection from an incoming request";
         channel->connection()->close();

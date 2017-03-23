@@ -33,6 +33,7 @@
 #include "IdentityManager.h"
 #include "ContactIDValidator.h"
 #include "core/OutgoingContactRequest.h"
+#include "core/BackendRPC.h"
 #include <QDebug>
 
 IdentityManager *identityManager = 0;
@@ -42,7 +43,7 @@ IdentityManager::IdentityManager(QObject *parent)
 {
     identityManager = this;
 
-    loadFromSettings();
+    loadFromBackend();
 }
 
 IdentityManager::~IdentityManager()
@@ -66,32 +67,15 @@ void IdentityManager::addIdentity(UserIdentity *identity)
     emit identityAdded(identity);
 }
 
-void IdentityManager::loadFromSettings()
+void IdentityManager::loadFromBackend()
 {
-    SettingsObject settings;
-    if (settings.read("identity") != QJsonValue::Undefined)
-    {
-        addIdentity(new UserIdentity(0, this));
+    ricochet::Identity reply;
+    if (!backend->getIdentity(reply)) {
+        // XXX
+        qFatal("Failed to read identity from backend");
     }
-    else
-    {
-        /* No identities exist (probably inital run); create one */
-        createIdentity();
-    }
-}
 
-UserIdentity *IdentityManager::createIdentity(const QString &serviceDirectory, const QString &nickname)
-{
-    UserIdentity *identity = UserIdentity::createIdentity(++highestID, serviceDirectory);
-    if (!identity)
-        return identity;
-
-    if (!nickname.isEmpty())
-        identity->setNickname(nickname);
-
-    addIdentity(identity);
-
-    return identity;
+    addIdentity(new UserIdentity(0, reply, this));
 }
 
 UserIdentity *IdentityManager::lookupHostname(const QString &hostname) const
@@ -106,17 +90,6 @@ UserIdentity *IdentityManager::lookupHostname(const QString &hostname) const
     for (QList<UserIdentity*>::ConstIterator it = m_identities.begin(); it != m_identities.end(); ++it)
     {
         if (ohost.compare((*it)->hostname(), Qt::CaseInsensitive) == 0)
-            return *it;
-    }
-
-    return 0;
-}
-
-UserIdentity *IdentityManager::lookupNickname(const QString &nickname) const
-{
-    for (QList<UserIdentity*>::ConstIterator it = m_identities.begin(); it != m_identities.end(); ++it)
-    {
-        if (QString::compare(nickname, (*it)->nickname(), Qt::CaseInsensitive) == 0)
             return *it;
     }
 

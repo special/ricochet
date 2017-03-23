@@ -34,22 +34,11 @@
 #define USERIDENTITY_H
 
 #include "ContactsManager.h"
+#include "rpc/identity.pb.h"
 #include <QObject>
 #include <QMetaType>
 #include <QVector>
 #include <QSharedPointer>
-
-namespace Tor
-{
-    class HiddenService;
-}
-
-namespace Protocol
-{
-    class Connection;
-}
-
-class QTcpServer;
 
 /* UserIdentity represents the local identity offered by the user.
  *
@@ -68,61 +57,35 @@ class UserIdentity : public QObject
     friend class IdentityManager;
 
     Q_PROPERTY(int uniqueID READ getUniqueID CONSTANT)
-    Q_PROPERTY(QString nickname READ nickname WRITE setNickname NOTIFY nicknameChanged)
     Q_PROPERTY(QString contactID READ contactID NOTIFY contactIDChanged)
     Q_PROPERTY(bool isOnline READ isServiceOnline NOTIFY statusChanged)
     Q_PROPERTY(ContactsManager *contacts READ getContacts CONSTANT)
-    Q_PROPERTY(SettingsObject *settings READ settings CONSTANT)
 
 public:
     const int uniqueID;
     ContactsManager contacts;
 
-    explicit UserIdentity(int uniqueID, QObject *parent = 0);
+    explicit UserIdentity(int uniqueID, const ricochet::Identity &data, QObject *parent = 0);
 
     /* Properties */
     int getUniqueID() const { return uniqueID; }
-    QString nickname() const;
     /* Hostname is .onion format, like ContactUser */
     QString hostname() const;
     QString contactID() const;
 
-    ContactsManager *getContacts() { return &contacts; }
+    const ricochet::Identity &data() const;
 
-    void setNickname(const QString &nickname);
+    ContactsManager *getContacts() { return &contacts; }
 
     /* State */
     bool isServiceOnline() const;
-    Tor::HiddenService *hiddenService() const { return m_hiddenService; }
-
-    SettingsObject *settings();
-
-    /* Take ownership of an inbound connection. Returns the shared pointer to
-     * the connection, and releases the reference held by UserIdentity. */
-    QSharedPointer<Protocol::Connection> takeIncomingConnection(Protocol::Connection *connection);
 
 signals:
     void statusChanged();
     void contactIDChanged(); // only possible during creation
-    void nicknameChanged();
-    void settingsChanged(const QString &key);
-    void incomingConnection(Protocol::Connection *connection);
-
-private slots:
-    void onStatusChanged(int newStatus, int oldStatus);
-    void onSettingsModified(const QString &key, const QJsonValue &value);
-    void onIncomingConnection();
 
 private:
-    SettingsObject *m_settings;
-    Tor::HiddenService *m_hiddenService;
-    QTcpServer *m_incomingServer;
-    QVector<QSharedPointer<Protocol::Connection>> m_incomingConnections;
-
-    static UserIdentity *createIdentity(int uniqueID, const QString &dataDirectory = QString());
-
-    void handleIncomingAuthedConnection(Protocol::Connection *connection);
-    void setupService();
+    ricochet::Identity m_data;
 };
 
 Q_DECLARE_METATYPE(UserIdentity*)

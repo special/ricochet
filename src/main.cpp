@@ -32,6 +32,7 @@
 
 #include "ui/MainWindow.h"
 #include "core/IdentityManager.h"
+#include "core/BackendRPC.h"
 #include "tor/TorManager.h"
 #include "tor/TorControl.h"
 #include "utils/CryptoKey.h"
@@ -97,6 +98,12 @@ int main(int argc, char *argv[])
         qFatal("Failed to initialize RNG");
     qsrand(SecureRNG::randomInt(UINT_MAX));
 
+    /* RPC connection to backend */
+    backend = new BackendRPC;
+    QScopedPointer<BackendRPC> scopedBackend(backend);
+    backend->connect();
+
+    // XXX Replace with backend's network state
     /* Tor control manager */
     Tor::TorManager *torManager = Tor::TorManager::instance();
     torManager->setDataDirectory(QFileInfo(settings->filePath()).path() + QStringLiteral("/tor/"));

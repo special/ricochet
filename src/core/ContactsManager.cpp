@@ -50,7 +50,7 @@ ContactsManager::ContactsManager(UserIdentity *id)
     contactsManager = this;
 }
 
-void ContactsManager::loadFromSettings()
+void ContactsManager::loadFromBackend()
 {
     SettingsObject settings(QStringLiteral("contacts"));
     foreach (const QString &key, settings.data().keys())

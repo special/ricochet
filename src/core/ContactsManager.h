@@ -76,7 +76,7 @@ public:
 
     static QString hostnameFromID(const QString &ID);
 
-    void loadFromSettings();
+    void loadFromBackend();
 
     int globalUnreadCount() const;
 

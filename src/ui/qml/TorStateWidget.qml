@@ -5,17 +5,17 @@ import im.ricochet 1.0
 
 Label {
     text: {
-        if (torControl.status === TorControl.Error)
+        if (networkManager.controlStatus === NetworkManager.ControlError)
             return qsTr("Connection failed")
-        if (torControl.status < TorControl.Connected) {
+        if (networkManager.controlStatus < NetworkManager.ControlConnected) {
             //: \u2026 is ellipsis
             return qsTr("Connecting\u2026")
         }
 
-        if (torControl.torStatus === TorControl.TorUnknown ||
-            torControl.torStatus === TorControl.TorOffline)
+        if (networkManager.connectionStatus === NetworkManager.ConnectionUnknown ||
+            networkManager.connectionStatus === NetworkManager.ConnectionOffline)
         {
-            var bootstrap = torControl.bootstrapStatus
+            var bootstrap = networkManager.bootstrapStatus
             if (bootstrap['recommendation'] === 'warn')
                 return qsTr("Connection failed")
             else if (bootstrap['progress'] === undefined)
@@ -26,7 +26,7 @@ Label {
             }
         }
 
-        if (torControl.torStatus === TorControl.TorReady) {
+        if (networkManager.connectionStatus === NetworkManager.ConnectionReady) {
             // Indicates whether we've verified that the hidden services is connectable
             if (userIdentity.isOnline)
                 return qsTr("Online")

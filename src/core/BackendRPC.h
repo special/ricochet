@@ -34,6 +34,8 @@
 #define BACKENDRPC_H
 
 #include <QObject>
+#include <thread>
+#include <grpc++/grpc++.h>
 #include "rpc/core.pb.h"
 #include "rpc/core.grpc.pb.h"
 
@@ -49,9 +51,16 @@ public:
 
 public slots:
     bool connect();
+    void startMonitorNetwork();
+    void stopMonitorNetwork();
+
+signals:
+    void networkStatusChanged(const ricochet::NetworkStatus &status);
 
 private:
     std::unique_ptr<ricochet::RicochetCore::Stub> client;
+    std::thread monitorNetworkThread;
+    std::unique_ptr<grpc::ClientContext> monitorNetworkCtx;
 };
 
 extern BackendRPC *backend;

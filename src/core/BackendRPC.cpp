@@ -33,6 +33,7 @@
 #include "BackendRPC.h"
 #include <QDebug>
 #include <grpc++/grpc++.h>
+#include <thread>
 #include "rpc/core.grpc.pb.h"
 
 using namespace grpc;
@@ -75,4 +76,39 @@ bool BackendRPC::getIdentity(ricochet::Identity &reply)
     }
 
     return true;
+}
+
+// Start steaming network status events, which will be emitted in networkStatusChanged
+void BackendRPC::startMonitorNetwork()
+{
+    if (monitorNetworkThread.joinable()) {
+        qDebug() << "Cannot start network monitoring repeatedly";
+        return;
+    }
+
+    monitorNetworkCtx.reset(new ClientContext);
+    monitorNetworkThread = std::thread(
+        [this]() {
+            MonitorNetworkRequest req;
+            std::unique_ptr<ClientReader<NetworkStatus>> reader(client->MonitorNetwork(monitorNetworkCtx.get(), req));
+
+            NetworkStatus netStatus;
+            while (reader->Read(&netStatus)) {
+                emit networkStatusChanged(netStatus);
+            }
+
+            Status status = reader->Finish();
+            if (!status.ok()) {
+                qDebug() << "RPC connection failed:" << QString::fromStdString(status.error_message());
+            }
+        });
+}
+
+// Stop stremaing network status events
+void BackendRPC::stopMonitorNetwork()
+{
+    if (monitorNetworkThread.joinable()) {
+        monitorNetworkCtx->TryCancel();
+        monitorNetworkThread.join();
+    }
 }

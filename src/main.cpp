@@ -33,6 +33,7 @@
 #include "ui/MainWindow.h"
 #include "core/IdentityManager.h"
 #include "core/BackendRPC.h"
+#include "core/NetworkManager.h"
 #include "tor/TorManager.h"
 #include "tor/TorControl.h"
 #include "utils/CryptoKey.h"
@@ -103,23 +104,24 @@ int main(int argc, char *argv[])
     QScopedPointer<BackendRPC> scopedBackend(backend);
     backend->connect();
 
-    // XXX Replace with backend's network state
+#if 0
     /* Tor control manager */
     Tor::TorManager *torManager = Tor::TorManager::instance();
     torManager->setDataDirectory(QFileInfo(settings->filePath()).path() + QStringLiteral("/tor/"));
     torControl = torManager->control();
     torManager->start();
+#endif
+
+    NetworkManager *netManager = NetworkManager::instance();
 
     /* Identities */
     identityManager = new IdentityManager;
     QScopedPointer<IdentityManager> scopedIdentityManager(identityManager);
 
-#if 0
     /* Window */
     QScopedPointer<MainWindow> w(new MainWindow);
     if (!w->showUI())
         return 1;
-#endif
 
     return a.exec();
 }

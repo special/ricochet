@@ -37,6 +37,7 @@
 #include "core/IdentityManager.h"
 #include "core/ContactIDValidator.h"
 #include "core/ConversationModel.h"
+#include "core/NetworkManager.h"
 #include "tor/TorControl.h"
 #include "tor/TorManager.h"
 #include "tor/TorProcess.h"
@@ -119,6 +120,7 @@ MainWindow::MainWindow(QObject *parent)
     qmlRegisterUncreatableType<OutgoingContactRequest>("im.ricochet", 1, 0, "OutgoingContactRequest", QString());
     qmlRegisterUncreatableType<Tor::TorControl>("im.ricochet", 1, 0, "TorControl", QString());
     qmlRegisterUncreatableType<Tor::TorProcess>("im.ricochet", 1, 0, "TorProcess", QString());
+    qmlRegisterUncreatableType<NetworkManager>("im.ricochet", 1, 0, "NetworkManager", QString());
     qmlRegisterType<ConversationModel>("im.ricochet", 1, 0, "ConversationModel");
     qmlRegisterType<ContactsModel>("im.ricochet", 1, 0, "ContactsModel");
     qmlRegisterType<ContactIDValidator>("im.ricochet", 1, 0, "ContactIDValidator");
@@ -137,8 +139,10 @@ bool MainWindow::showUI()
 {
     Q_ASSERT(!identityManager->identities().isEmpty());
     qml->rootContext()->setContextProperty(QLatin1String("userIdentity"), identityManager->identities()[0]);
+    // XXX
     qml->rootContext()->setContextProperty(QLatin1String("torControl"), torControl);
     qml->rootContext()->setContextProperty(QLatin1String("torInstance"), Tor::TorManager::instance());
+    qml->rootContext()->setContextProperty(QLatin1String("networkManager"), NetworkManager::instance());
     qml->rootContext()->setContextProperty(QLatin1String("uiMain"), this);
 
     qml->load(QUrl(QLatin1String("qrc:/ui/main.qml")));

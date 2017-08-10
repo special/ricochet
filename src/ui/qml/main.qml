@@ -63,6 +63,7 @@ QtObject {
             return re
         }
 
+        /* XXX
         if (torInstance.configurationNeeded) {
             var object = createDialog("NetworkSetupWizard.qml")
             object.networkReady.connect(function() {
@@ -70,9 +71,9 @@ QtObject {
                 object.visible = false
             })
             object.visible = true
-        } else {
+        } else {*/
             mainWindow.visible = true
-        }
+        //}
     }
 
     property list<QtObject> data: [

@@ -89,7 +89,7 @@ MouseArea {
         horizontalAlignment: Text.AlignHCenter
         color: Qt.lighter(palette.text, 1.2)
         font.pointSize: 11
-        text: torControl.errorMessage
+        text: networkManager.controlError
     }
 
     GridLayout {
@@ -122,7 +122,7 @@ MouseArea {
     states: [
         State {
             name: "connected"
-            when: torControl.torStatus === TorControl.TorReady
+            when: networkManager.connectionStatus === NetworkManager.ConnectionReady
 
             PropertyChanges {
                 target: offlineState
@@ -131,7 +131,7 @@ MouseArea {
         },
         State {
             name: "failed"
-            when: torControl.status === TorControl.Error
+            when: networkManager.controlStatus === NetworkManager.ControlError
 
             PropertyChanges {
                 target: offlineState
@@ -156,7 +156,7 @@ MouseArea {
         },
         State {
             name: "connecting"
-            when: torControl.torStatus !== TorControl.TorReady
+            when: networkManager.connectionStatus !== NetworkManager.ConnectionReady
 
             PropertyChanges {
                 target: offlineState

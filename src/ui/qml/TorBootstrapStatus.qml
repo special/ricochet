@@ -6,7 +6,7 @@ Column {
     id: page
     spacing: 8
 
-    property var bootstrap: torControl.bootstrapStatus
+    property var bootstrap: networkManager.bootstrapStatus
     onBootstrapChanged: {
         if (bootstrap['tag'] === "done")
             window.networkReady()

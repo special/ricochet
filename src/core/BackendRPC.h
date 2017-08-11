@@ -54,6 +54,8 @@ public:
     // returns true and updates msg with the full server-side data.
     bool sendMessage(ricochet::Message &msg);
 
+    bool addContactRequest(const ricochet::ContactRequest &request, ricochet::Contact &newContact);
+
 public slots:
     bool connect();
     void startMonitorNetwork();

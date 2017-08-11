@@ -35,6 +35,7 @@
 #include "ConversationModel.h"
 #include "core/BackendRPC.h"
 #include <QStringList>
+#include <QDateTime>
 #include <QDebug>
 
 #ifdef Q_OS_MAC
@@ -97,6 +98,8 @@ void ContactsManager::contactEvent(const ricochet::ContactEvent &event)
         switch (event.type()) {
             case ricochet::ContactEvent::ADD:
                 if (user) {
+                    // This can happen under normal circumstances, because addContact will create the contact also.
+                    // It's harmless and the contacts are identical.
                     qDebug() << "Ignoring contact add event for existing contact";
                     return;
                 }
@@ -185,8 +188,33 @@ void ContactsManager::connectSignals(ContactUser *user)
 ContactUser *ContactsManager::createContactRequest(const QString &contactid, const QString &nickname,
                                                    const QString &myNickname, const QString &message)
 {
-    qFatal("not implemented");
-    return nullptr;
+    ricochet::ContactRequest request;
+    request.set_direction(ricochet::ContactRequest::OUTBOUND);
+    request.set_address(contactid.toStdString());
+    request.set_nickname(nickname.toStdString());
+    request.set_fromnickname(myNickname.toStdString());
+    request.set_text(message.toStdString());
+    request.set_whencreated(QDateTime::currentDateTime().toString(Qt::ISODate).toStdString());
+
+    ricochet::Contact contactData;
+    if (!backend->addContactRequest(request, contactData)) {
+        qDebug() << "Add contact request RPC failed";
+        return nullptr;
+    }
+
+    // Check for a matching contact, in case the add event was somehow handled already
+    ContactUser *user = lookupHostname(ContactIDValidator::hostnameFromID(QString::fromStdString(contactData.address())));
+    Q_ASSERT(!user || user->uniqueID == contactData.id());
+
+    // Create the contact now. We'll also receive it as an ADD event, but that can be safely ignored.
+    if (!user) {
+        user = new ContactUser(identity, contactData, this);
+        connectSignals(user);
+        pContacts.append(user);
+        emit contactAdded(user);
+    }
+
+    return user;
 }
 
 void ContactsManager::contactDeleted(ContactUser *user)

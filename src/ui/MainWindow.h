@@ -39,7 +39,6 @@
 class ContactUser;
 class UserIdentity;
 class IncomingContactRequest;
-class OutgoingContactRequest;
 class QQmlApplicationEngine;
 class QQuickItem;
 class QQuickWindow;

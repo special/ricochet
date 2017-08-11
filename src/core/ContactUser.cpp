@@ -36,7 +36,6 @@
 #include "utils/SecureRNG.h"
 #include "utils/Useful.h"
 #include "core/ContactIDValidator.h"
-#include "core/OutgoingContactRequest.h"
 #include "core/ConversationModel.h"
 #include "tor/HiddenService.h"
 #include "protocol/OutboundConnector.h"

@@ -42,7 +42,6 @@
 #include "rpc/contact.pb.h"
 
 class UserIdentity;
-class OutgoingContactRequest;
 class ConversationModel;
 
 namespace Protocol
@@ -70,7 +69,6 @@ class ContactUser : public QObject
     Q_PROPERTY(ConversationModel *conversation READ conversation CONSTANT)
 
     friend class ContactsManager;
-    friend class OutgoingContactRequest;
 
 public:
     enum Status

@@ -53,13 +53,11 @@ signals:
     void identityAdded(UserIdentity *identity);
     void contactAdded(ContactUser *user, UserIdentity *identity);
     void contactDeleted(ContactUser *user, UserIdentity *identity);
-    void outgoingRequestAdded(OutgoingContactRequest *request, UserIdentity *identity);
     void incomingRequestAdded(IncomingContactRequest *request, UserIdentity *identity);
     void incomingRequestRemoved(IncomingContactRequest *request, UserIdentity *identity);
 
 private slots:
     void onContactAdded(ContactUser *user);
-    void onOutgoingRequest(OutgoingContactRequest *request);
     void onIncomingRequest(IncomingContactRequest *request);
     void onIncomingRequestRemoved(IncomingContactRequest *request);
 

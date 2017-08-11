@@ -32,7 +32,6 @@
 
 #include "ContactsManager.h"
 #include "IncomingRequestManager.h"
-#include "OutgoingContactRequest.h"
 #include "ContactIDValidator.h"
 #include "ConversationModel.h"
 #include "core/BackendRPC.h"
@@ -187,25 +186,8 @@ void ContactsManager::connectSignals(ContactUser *user)
 ContactUser *ContactsManager::createContactRequest(const QString &contactid, const QString &nickname,
                                                    const QString &myNickname, const QString &message)
 {
-    QString hostname = ContactIDValidator::hostnameFromID(contactid);
-    if (hostname.isEmpty() || lookupHostname(contactid) || lookupNickname(nickname))
-    {
-        return 0;
-    }
-
-    bool b = blockSignals(true);
-    ContactUser *user = addContact(nickname);
-    blockSignals(b);
-    if (!user)
-        return user;
-    user->setHostname(ContactIDValidator::hostnameFromID(contactid));
-
-    OutgoingContactRequest::createNewRequest(user, myNickname, message);
-
-    /* Signal deferred from addContact to avoid changing the status immediately */
-    Q_ASSERT(user->status() == ContactUser::RequestPending);
-    emit contactAdded(user);
-    return user;
+    qFatal("not implemented");
+    return nullptr;
 }
 
 void ContactsManager::contactDeleted(ContactUser *user)

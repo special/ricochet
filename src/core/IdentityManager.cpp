@@ -32,7 +32,6 @@
 
 #include "IdentityManager.h"
 #include "ContactIDValidator.h"
-#include "core/OutgoingContactRequest.h"
 #include "core/BackendRPC.h"
 #include <QDebug>
 
@@ -57,8 +56,6 @@ void IdentityManager::addIdentity(UserIdentity *identity)
     highestID = qMax(identity->uniqueID, highestID);
 
     connect(&identity->contacts, SIGNAL(contactAdded(ContactUser*)), SLOT(onContactAdded(ContactUser*)));
-    connect(&identity->contacts, SIGNAL(outgoingRequestAdded(OutgoingContactRequest*)),
-            SLOT(onOutgoingRequest(OutgoingContactRequest*)));
     connect(&identity->contacts.incomingRequests, SIGNAL(requestAdded(IncomingContactRequest*)),
             SLOT(onIncomingRequest(IncomingContactRequest*)));
     connect(&identity->contacts.incomingRequests, SIGNAL(requestRemoved(IncomingContactRequest*)),
@@ -110,11 +107,6 @@ UserIdentity *IdentityManager::lookupUniqueID(int uniqueID) const
 void IdentityManager::onContactAdded(ContactUser *user)
 {
     emit contactAdded(user, user->identity);
-}
-
-void IdentityManager::onOutgoingRequest(OutgoingContactRequest *request)
-{
-    emit outgoingRequestAdded(request, request->user->identity);
 }
 
 void IdentityManager::onIncomingRequest(IncomingContactRequest *request)

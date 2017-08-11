@@ -119,7 +119,9 @@ Item {
                     visible: contactInfo.request !== null
                     textFormat: Text.PlainText
                     text: {
-                        var re = ""
+                        // XXX
+                        return "not implemented"
+                        /*var re = ""
                         if (contactInfo.request === null)
                             return re
                         switch (contactInfo.request.status) {
@@ -133,7 +135,7 @@ Item {
                             //: %1 status, e.g. "Accepted"
                             re = qsTr("%1 (Connected)").arg(re)
                         }
-                        return re
+                        return re*/
                     }
                 }
 

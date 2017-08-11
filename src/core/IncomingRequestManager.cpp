@@ -33,11 +33,11 @@
 #include "IdentityManager.h"
 #include "IncomingRequestManager.h"
 #include "ContactsManager.h"
-#include "OutgoingContactRequest.h"
 #include "ContactIDValidator.h"
 #include "utils/Useful.h"
 #include "protocol/Connection.h"
 #include "protocol/ContactRequestChannel.h"
+#include "utils/Settings.h"
 
 IncomingRequestManager::IncomingRequestManager(ContactsManager *c)
     : QObject(c), contacts(c)

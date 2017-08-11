@@ -40,7 +40,6 @@
 #include "rpc/contact.pb.h"
 #include "rpc/conversation.pb.h"
 
-class OutgoingContactRequest;
 class UserIdentity;
 class IncomingRequestManager;
 
@@ -51,8 +50,6 @@ class ContactsManager : public QObject
 
     Q_PROPERTY(IncomingRequestManager* incomingRequests READ incomingRequestManager CONSTANT)
     Q_PROPERTY(int globalUnreadCount READ globalUnreadCount NOTIFY unreadCountChanged)
-
-    friend class OutgoingContactRequest;
 
 public:
     UserIdentity * const identity;
@@ -83,7 +80,6 @@ public:
 
 signals:
     void contactAdded(ContactUser *user);
-    void outgoingRequestAdded(OutgoingContactRequest *request);
 
     void unreadCountChanged(ContactUser *user, int unreadCount);
 

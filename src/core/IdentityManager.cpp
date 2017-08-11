@@ -56,10 +56,6 @@ void IdentityManager::addIdentity(UserIdentity *identity)
     highestID = qMax(identity->uniqueID, highestID);
 
     connect(&identity->contacts, SIGNAL(contactAdded(ContactUser*)), SLOT(onContactAdded(ContactUser*)));
-    connect(&identity->contacts.incomingRequests, SIGNAL(requestAdded(IncomingContactRequest*)),
-            SLOT(onIncomingRequest(IncomingContactRequest*)));
-    connect(&identity->contacts.incomingRequests, SIGNAL(requestRemoved(IncomingContactRequest*)),
-            SLOT(onIncomingRequestRemoved(IncomingContactRequest*)));
 
     emit identityAdded(identity);
 }
@@ -107,14 +103,4 @@ UserIdentity *IdentityManager::lookupUniqueID(int uniqueID) const
 void IdentityManager::onContactAdded(ContactUser *user)
 {
     emit contactAdded(user, user->identity);
-}
-
-void IdentityManager::onIncomingRequest(IncomingContactRequest *request)
-{
-    emit incomingRequestAdded(request, request->manager->contacts->identity);
-}
-
-void IdentityManager::onIncomingRequestRemoved(IncomingContactRequest *request)
-{
-    emit incomingRequestRemoved(request, request->manager->contacts->identity);
 }

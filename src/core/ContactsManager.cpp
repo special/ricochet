@@ -31,7 +31,6 @@
  */
 
 #include "ContactsManager.h"
-#include "IncomingRequestManager.h"
 #include "ContactIDValidator.h"
 #include "ConversationModel.h"
 #include "core/BackendRPC.h"
@@ -45,7 +44,7 @@
 ContactsManager *contactsManager = 0;
 
 ContactsManager::ContactsManager(UserIdentity *id)
-    : identity(id), incomingRequests(this), contactsPopulated(false), conversationsPopulated(false)
+    : identity(id), contactsPopulated(false), conversationsPopulated(false)
 {
     contactsManager = this;
     connect(backend, &BackendRPC::contactEvent, this, &ContactsManager::contactEvent);

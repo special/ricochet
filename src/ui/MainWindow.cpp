@@ -32,7 +32,6 @@
 
 #include "MainWindow.h"
 #include "core/UserIdentity.h"
-#include "core/IncomingRequestManager.h"
 #include "core/IdentityManager.h"
 #include "core/ContactIDValidator.h"
 #include "core/ConversationModel.h"
@@ -114,8 +113,6 @@ MainWindow::MainWindow(QObject *parent)
     qmlRegisterUncreatableType<ContactUser>("im.ricochet", 1, 0, "ContactUser", QString());
     qmlRegisterUncreatableType<UserIdentity>("im.ricochet", 1, 0, "UserIdentity", QString());
     qmlRegisterUncreatableType<ContactsManager>("im.ricochet", 1, 0, "ContactsManager", QString());
-    qmlRegisterUncreatableType<IncomingRequestManager>("im.ricochet", 1, 0, "IncomingRequestManager", QString());
-    qmlRegisterUncreatableType<IncomingContactRequest>("im.ricochet", 1, 0, "IncomingContactRequest", QString());
     qmlRegisterUncreatableType<Tor::TorControl>("im.ricochet", 1, 0, "TorControl", QString());
     qmlRegisterUncreatableType<Tor::TorProcess>("im.ricochet", 1, 0, "TorProcess", QString());
     qmlRegisterUncreatableType<NetworkManager>("im.ricochet", 1, 0, "NetworkManager", QString());

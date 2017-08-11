@@ -166,7 +166,6 @@ SOURCES += src/main.cpp \
     src/tor/HiddenService.cpp \
     src/utils/CryptoKey.cpp \
     src/utils/SecureRNG.cpp \
-    src/core/IncomingRequestManager.cpp \
     src/core/ContactIDValidator.cpp \
     src/core/UserIdentity.cpp \
     src/core/IdentityManager.cpp \
@@ -197,7 +196,6 @@ HEADERS += src/ui/MainWindow.h \
     src/tor/HiddenService.h \
     src/utils/CryptoKey.h \
     src/utils/SecureRNG.h \
-    src/core/IncomingRequestManager.h \
     src/core/ContactIDValidator.h \
     src/core/UserIdentity.h \
     src/core/IdentityManager.h \

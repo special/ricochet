@@ -53,13 +53,9 @@ signals:
     void identityAdded(UserIdentity *identity);
     void contactAdded(ContactUser *user, UserIdentity *identity);
     void contactDeleted(ContactUser *user, UserIdentity *identity);
-    void incomingRequestAdded(IncomingContactRequest *request, UserIdentity *identity);
-    void incomingRequestRemoved(IncomingContactRequest *request, UserIdentity *identity);
 
 private slots:
     void onContactAdded(ContactUser *user);
-    void onIncomingRequest(IncomingContactRequest *request);
-    void onIncomingRequestRemoved(IncomingContactRequest *request);
 
 private:
     QList<UserIdentity*> m_identities;

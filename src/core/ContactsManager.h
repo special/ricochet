@@ -36,28 +36,22 @@
 #include <QObject>
 #include <QList>
 #include "ContactUser.h"
-#include "IncomingRequestManager.h"
 #include "rpc/contact.pb.h"
 #include "rpc/conversation.pb.h"
 
 class UserIdentity;
-class IncomingRequestManager;
 
 class ContactsManager : public QObject
 {
     Q_OBJECT
     Q_DISABLE_COPY(ContactsManager)
 
-    Q_PROPERTY(IncomingRequestManager* incomingRequests READ incomingRequestManager CONSTANT)
     Q_PROPERTY(int globalUnreadCount READ globalUnreadCount NOTIFY unreadCountChanged)
 
 public:
     UserIdentity * const identity;
-    IncomingRequestManager incomingRequests;
 
     explicit ContactsManager(UserIdentity *identity);
-
-    IncomingRequestManager *incomingRequestManager() { return &incomingRequests; }
 
     const QList<ContactUser*> &contacts() const { return pContacts; }
     ContactUser *lookupHostname(const QString &hostname) const;

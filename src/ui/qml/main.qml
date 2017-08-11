@@ -77,13 +77,14 @@ QtObject {
     }
 
     property list<QtObject> data: [
-        Connections {
+        // XXX
+        /*Connections {
             target: userIdentity.contacts.incomingRequests
             onRequestAdded: {
                 var object = createDialog("ContactRequestDialog.qml", { 'request': request })
                 object.visible = true
             }
-        },
+        },*/
 
         Connections {
             target: torInstance

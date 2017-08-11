@@ -34,10 +34,7 @@
 #include "tor/TorControl.h"
 #include "tor/HiddenService.h"
 #include "core/ContactIDValidator.h"
-#include "protocol/Connection.h"
 #include "utils/Useful.h"
-
-using namespace Protocol;
 
 UserIdentity::UserIdentity(int id, const ricochet::Identity &data, QObject *parent)
     : QObject(parent)

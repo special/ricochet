@@ -38,16 +38,10 @@
 #include <QMetaType>
 #include <QVariant>
 #include <QSharedPointer>
-#include "protocol/Connection.h"
 #include "rpc/contact.pb.h"
 
 class UserIdentity;
 class ConversationModel;
-
-namespace Protocol
-{
-    class OutboundConnector;
-}
 
 /* Represents a user on the contact list.
  * All persistent uses of a ContactUser instance must either connect to the
@@ -87,7 +81,6 @@ public:
     explicit ContactUser(UserIdentity *identity, const ricochet::Contact &data, QObject *parent = 0);
     virtual ~ContactUser();
 
-    QSharedPointer<Protocol::Connection> connection() { return nullptr; }
     bool isConnected() const { return status() == Online; }
 
     ConversationModel *conversation() { return m_conversation; }
@@ -120,7 +113,6 @@ signals:
 
 private:
     ricochet::Contact m_data;
-    QSharedPointer<Protocol::Connection> m_connection;
 
     quint16 m_lastReceivedChatID;
     ConversationModel *m_conversation;

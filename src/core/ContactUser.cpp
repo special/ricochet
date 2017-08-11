@@ -38,7 +38,6 @@
 #include "core/ContactIDValidator.h"
 #include "core/ConversationModel.h"
 #include "tor/HiddenService.h"
-#include "protocol/OutboundConnector.h"
 #include <QtDebug>
 #include <QDateTime>
 #include <QtEndian>
@@ -48,7 +47,6 @@ ContactUser::ContactUser(UserIdentity *ident, const ricochet::Contact &data, QOb
     , identity(ident)
     , uniqueID(data.id())
     , m_data(data)
-    , m_connection(0)
     , m_lastReceivedChatID(0)
     , m_conversation(0)
 {

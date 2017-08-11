@@ -38,8 +38,8 @@
 #include <QMetaType>
 #include <QVariant>
 #include <QSharedPointer>
-#include "utils/Settings.h"
 #include "protocol/Connection.h"
+#include "rpc/contact.pb.h"
 
 class UserIdentity;
 class OutgoingContactRequest;
@@ -55,19 +55,18 @@ namespace Protocol
  * contactDeleted() signal, or use a QWeakPointer to track deletion. A ContactUser
  * can be removed at essentially any time. */
 
+// XXX QML uses of contact.settings, contact.contactRequest
+
 class ContactUser : public QObject
 {
     Q_OBJECT
     Q_DISABLE_COPY(ContactUser)
-    Q_ENUMS(Status)
 
     Q_PROPERTY(int uniqueID READ getUniqueID CONSTANT)
     Q_PROPERTY(UserIdentity* identity READ getIdentity CONSTANT)
     Q_PROPERTY(QString nickname READ nickname WRITE setNickname NOTIFY nicknameChanged)
     Q_PROPERTY(QString contactID READ contactID CONSTANT)
     Q_PROPERTY(Status status READ status NOTIFY statusChanged)
-    Q_PROPERTY(OutgoingContactRequest *contactRequest READ contactRequest NOTIFY statusChanged)
-    Q_PROPERTY(SettingsObject *settings READ settings CONSTANT)
     Q_PROPERTY(ConversationModel *conversation READ conversation CONSTANT)
 
     friend class ContactsManager;
@@ -76,23 +75,23 @@ class ContactUser : public QObject
 public:
     enum Status
     {
-        Online,
-        Offline,
-        RequestPending,
-        RequestRejected,
-        Outdated
+        Unknown = ricochet::Contact::UNKNOWN,
+        Offline = ricochet::Contact::OFFLINE,
+        Online = ricochet::Contact::ONLINE,
+        RequestPending = ricochet::Contact::REQUEST,
+        RequestRejected = ricochet::Contact::REJECTED
     };
+    Q_ENUM(Status)
 
     UserIdentity * const identity;
     const int uniqueID;
 
-    explicit ContactUser(UserIdentity *identity, int uniqueID, QObject *parent = 0);
+    explicit ContactUser(UserIdentity *identity, const ricochet::Contact &data, QObject *parent = 0);
     virtual ~ContactUser();
 
-    const QSharedPointer<Protocol::Connection> &connection() { return m_connection; }
+    QSharedPointer<Protocol::Connection> connection() { return nullptr; }
     bool isConnected() const { return status() == Online; }
 
-    OutgoingContactRequest *contactRequest() { return m_contactRequest; }
     ConversationModel *conversation() { return m_conversation; }
 
     UserIdentity *getIdentity() const { return identity; }
@@ -105,67 +104,30 @@ public:
     /* Contact ID in the ricochet: format */
     QString contactID() const;
 
-    Status status() const { return m_status; }
-
-    SettingsObject *settings();
+    Status status() const;
 
     Q_INVOKABLE void deleteContact();
 
 public slots:
-    /* Assign a connection to this user
-     *
-     * The connection must be connected, and the peer must be authenticated and
-     * must match this user. ContactUser will assume ownership of the connection,
-     * and it will be closed and deleted when it's no longer used.
-     *
-     * It is valid to pass an incoming or outgoing connection. If there is already
-     * a connection, protocol-specific rules are applied and the new connection
-     * may be closed to favor the older one.
-     *
-     * If the existing connection is replaced, that is equivalent to disconnecting
-     * and reconnectng immediately - any ongoing operations will fail and need to
-     * be retried at a higher level.
-     */
-    void assignConnection(const QSharedPointer<Protocol::Connection> &connection);
-
     void setNickname(const QString &nickname);
     void setHostname(const QString &hostname);
-
-    void updateStatus();
 
 signals:
     void statusChanged();
     void connected();
     void disconnected();
-    void connectionChanged(const QWeakPointer<Protocol::Connection> &connection);
 
     void nicknameChanged();
     void contactDeleted(ContactUser *user);
 
-private slots:
-    void onConnected();
-    void onDisconnected();
-    void requestRemoved();
-    void requestAccepted();
-    void onSettingsModified(const QString &key, const QJsonValue &value);
-
 private:
+    ricochet::Contact m_data;
     QSharedPointer<Protocol::Connection> m_connection;
-    Protocol::OutboundConnector *m_outgoingSocket;
 
-    Status m_status;
     quint16 m_lastReceivedChatID;
-    OutgoingContactRequest *m_contactRequest;
-    SettingsObject *m_settings;
     ConversationModel *m_conversation;
 
-    /* See ContactsManager::addContact */
-    static ContactUser *addNewContact(UserIdentity *identity, int id);
-
-    void loadContactRequest();
-    void updateOutgoingSocket();
-
-    void clearConnection();
+    void updated(const ricochet::Contact &data);
 };
 
 Q_DECLARE_METATYPE(ContactUser*)

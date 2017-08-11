@@ -37,6 +37,7 @@ TARGET = ricochet
 TEMPLATE = app
 QT += core gui network quick widgets
 CONFIG += c++11
+QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
 
 VERSION = 1.1.4
 

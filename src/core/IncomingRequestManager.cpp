@@ -314,7 +314,7 @@ void IncomingContactRequest::accept(ContactUser *user)
         auto channel = connection->findChannel<Protocol::ContactRequestChannel>();
         if (channel) {
             // Channel will close after sending a final response
-            user->assignConnection(connection);
+            //user->assignConnection(connection);
             channel->setResponseStatus(Response::Accepted);
         } else {
             connection->close();
@@ -325,8 +325,6 @@ void IncomingContactRequest::accept(ContactUser *user)
     // Remove the request
     removeRequest();
     manager->removeRequest(this);
-
-    user->updateStatus();
 }
 
 void IncomingContactRequest::reject()

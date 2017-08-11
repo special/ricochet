@@ -44,6 +44,8 @@ BackendRPC *backend = 0;
 BackendRPC::BackendRPC(QObject *parent)
     : QObject(parent)
 {
+    qRegisterMetaType<ricochet::NetworkStatus>("ricochet::NetworkStatus");
+    qRegisterMetaType<ricochet::ContactEvent>("ricochet::ContactEvent");
 }
 
 bool BackendRPC::connect()
@@ -104,11 +106,46 @@ void BackendRPC::startMonitorNetwork()
         });
 }
 
-// Stop stremaing network status events
+// Stop streaming network status events
 void BackendRPC::stopMonitorNetwork()
 {
     if (monitorNetworkThread.joinable()) {
         monitorNetworkCtx->TryCancel();
         monitorNetworkThread.join();
+    }
+}
+
+// Start steaming contact events, which will be emitted in contactEvent
+void BackendRPC::startMonitorContacts()
+{
+    if (monitorContactsThread.joinable()) {
+        qDebug() << "Cannot start contacts monitoring repeatedly";
+        return;
+    }
+
+    monitorContactsCtx.reset(new ClientContext);
+    monitorContactsThread = std::thread(
+        [this]() {
+            MonitorContactsRequest req;
+            std::unique_ptr<ClientReader<ContactEvent>> reader(client->MonitorContacts(monitorContactsCtx.get(), req));
+
+            ContactEvent event;
+            while (reader->Read(&event)) {
+                emit contactEvent(event);
+            }
+
+            Status status = reader->Finish();
+            if (!status.ok()) {
+                qDebug() << "RPC connection failed:" << QString::fromStdString(status.error_message());
+            }
+        });
+}
+
+// Stop streaming network status events
+void BackendRPC::stopMonitorContacts()
+{
+    if (monitorContactsThread.joinable()) {
+        monitorContactsCtx->TryCancel();
+        monitorContactsThread.join();
     }
 }

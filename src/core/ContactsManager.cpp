@@ -35,6 +35,7 @@
 #include "OutgoingContactRequest.h"
 #include "ContactIDValidator.h"
 #include "ConversationModel.h"
+#include "core/BackendRPC.h"
 #include <QStringList>
 #include <QDebug>
 
@@ -45,50 +46,96 @@
 ContactsManager *contactsManager = 0;
 
 ContactsManager::ContactsManager(UserIdentity *id)
-    : identity(id), incomingRequests(this), highestID(-1)
+    : identity(id), incomingRequests(this), populated(false)
 {
     contactsManager = this;
+    connect(backend, &BackendRPC::contactEvent, this, &ContactsManager::contactEvent);
 }
 
 void ContactsManager::loadFromBackend()
 {
-    SettingsObject settings(QStringLiteral("contacts"));
-    foreach (const QString &key, settings.data().keys())
-    {
-        bool ok = false;
-        int id = key.toInt(&ok);
-        if (!ok)
-        {
-            qWarning() << "Ignoring contact" << key << " with a non-integer ID";
-            continue;
+    Q_ASSERT(!populated);
+    // Begin MonitorContacts. The full contacts list will be sent in POPULATE events first,
+    // followed by a null POPULATE event, followed by a stream of any changes.
+    backend->startMonitorContacts();
+}
+
+void ContactsManager::contactEvent(const ricochet::ContactEvent &event)
+{
+    if (!populated) {
+        if (event.type() != ricochet::ContactEvent::POPULATE) {
+            qDebug() << "Ignoring unexpected contact event type" << event.type() << "during populate";
+            return;
         }
 
-        ContactUser *user = new ContactUser(identity, id, this);
-        connectSignals(user);
-        pContacts.append(user);
-        emit contactAdded(user);
-        highestID = qMax(id, highestID);
+        if (event.has_contact()) {
+            ContactUser *user = new ContactUser(identity, event.contact(), this);
+            connectSignals(user);
+            pContacts.append(user);
+            emit contactAdded(user);
+        } else if (event.has_request()) {
+            // XXX incomingRequests.loadRequests
+            qDebug() << "XXX Ignoring incoming request in contacts for now";
+        } else {
+            // End of populate
+            qDebug() << "Contacts populated";
+            populated = true;
+        }
+
+        return;
     }
 
-    incomingRequests.loadRequests();
+    if (event.has_contact()) {
+        ContactUser *user = lookupHostname(ContactIDValidator::hostnameFromID(QString::fromStdString(event.contact().address())));
+        if (user && user->uniqueID != event.contact().id()) {
+            qDebug() << "Ignoring contact event with an address/id mismatch";
+            return;
+        }
+
+        switch (event.type()) {
+            case ricochet::ContactEvent::ADD:
+                if (user) {
+                    qDebug() << "Ignoring contact add event for existing contact";
+                    return;
+                }
+                user = new ContactUser(identity, event.contact(), this);
+                connectSignals(user);
+                pContacts.append(user);
+                emit contactAdded(user);
+                break;
+
+            case ricochet::ContactEvent::UPDATE:
+                if (!user) {
+                    qDebug() << "Ignoring contact update event for unknown contact";
+                    return;
+                }
+                user->updated(event.contact());
+                break;
+
+            case ricochet::ContactEvent::DELETE:
+                if (!user) {
+                    qDebug() << "Ignoring contact delete event for unknown contact";
+                    return;
+                }
+                // XXX
+                break;
+
+            default:
+                qDebug() << "Ignoring unknown contact event type" << event.type();
+                return;
+        }
+    } else if (event.has_request()) {
+        // XXX
+        qDebug() << "Ignoring contact request event for now";
+    } else {
+        qDebug() << "Ignoring contact event without a subject";
+    }
 }
 
 ContactUser *ContactsManager::addContact(const QString &nickname)
 {
-    Q_ASSERT(!nickname.isEmpty());
-
-    highestID++;
-    ContactUser *user = ContactUser::addNewContact(identity, highestID);
-    user->setParent(this);
-    user->setNickname(nickname);
-    connectSignals(user);
-
-    qDebug() << "Added new contact" << nickname << "with ID" << user->uniqueID;
-
-    pContacts.append(user);
-    emit contactAdded(user);
-
-    return user;
+    qFatal("dead function");
+    return nullptr;
 }
 
 void ContactsManager::connectSignals(ContactUser *user)
@@ -125,19 +172,6 @@ ContactUser *ContactsManager::createContactRequest(const QString &contactid, con
 void ContactsManager::contactDeleted(ContactUser *user)
 {
     pContacts.removeOne(user);
-}
-
-ContactUser *ContactsManager::lookupSecret(const QByteArray &secret) const
-{
-    Q_ASSERT(secret.size() == 16);
-
-    for (QList<ContactUser*>::ConstIterator it = pContacts.begin(); it != pContacts.end(); ++it)
-    {
-        if (secret == (*it)->settings()->read<Base64Encode>("localSecret"))
-            return *it;
-    }
-
-    return 0;
 }
 
 ContactUser *ContactsManager::lookupHostname(const QString &hostname) const

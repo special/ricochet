@@ -45,8 +45,7 @@ UserIdentity::UserIdentity(int id, const ricochet::Identity &data, QObject *pare
     , contacts(this)
     , m_data(data)
 {
-    // XXX
-    //contacts.loadFromSettings();
+    contacts.loadFromBackend();
 }
 
 const ricochet::Identity &UserIdentity::data() const

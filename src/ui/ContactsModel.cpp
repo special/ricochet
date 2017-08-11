@@ -35,10 +35,23 @@
 #include "core/ContactsManager.h"
 #include <QDebug>
 
+inline int statusSortValue(ContactUser::Status status)
+{
+    switch (status)
+    {
+        case ContactUser::Online: return 0;
+        case ContactUser::Unknown: return 1;
+        case ContactUser::Offline: return 2;
+        case ContactUser::RequestPending: return 3;
+        case ContactUser::RequestRejected: return 4;
+        default: return 5;
+    }
+}
+
 inline bool contactSort(const ContactUser *c1, const ContactUser *c2)
 {
     if (c1->status() != c2->status())
-        return c1->status() < c2->status();
+        return statusSortValue(c1->status()) < statusSortValue(c2->status());
     return c1->nickname().localeAwareCompare(c2->nickname()) < 0;
 }
 

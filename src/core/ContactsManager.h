@@ -37,6 +37,7 @@
 #include <QList>
 #include "ContactUser.h"
 #include "IncomingRequestManager.h"
+#include "rpc/contact.pb.h"
 
 class OutgoingContactRequest;
 class UserIdentity;
@@ -61,7 +62,6 @@ public:
     IncomingRequestManager *incomingRequestManager() { return &incomingRequests; }
 
     const QList<ContactUser*> &contacts() const { return pContacts; }
-    ContactUser *lookupSecret(const QByteArray &secret) const;
     ContactUser *lookupHostname(const QString &hostname) const;
     ContactUser *lookupNickname(const QString &nickname) const;
     ContactUser *lookupUniqueID(int uniqueID) const;
@@ -94,9 +94,10 @@ private slots:
 
 private:
     QList<ContactUser*> pContacts;
-    int highestID;
+    bool populated;
 
     void connectSignals(ContactUser *user);
+    void contactEvent(const ricochet::ContactEvent &event);
 };
 
 #endif // CONTACTSMANAGER_H

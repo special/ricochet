@@ -42,21 +42,12 @@
 OutgoingContactRequest *OutgoingContactRequest::createNewRequest(ContactUser *user, const QString &myNickname,
                                                                  const QString &message)
 {
-    Q_ASSERT(!user->contactRequest());
-
-    SettingsObject *settings = user->settings();
-    settings->write("request.status", static_cast<int>(Pending));
-    settings->write("request.myNickname", myNickname);
-    settings->write("request.message", message);
-
-    user->loadContactRequest();
-    Q_ASSERT(user->contactRequest());
-    return user->contactRequest();
+    // XXX
+    return nullptr;
 }
 
 OutgoingContactRequest::OutgoingContactRequest(ContactUser *u)
     : QObject(u), user(u)
-    , m_settings(new SettingsObject(u->settings(), QStringLiteral("request"), this))
 {
     emit user->identity->contacts.outgoingRequestAdded(this);
 

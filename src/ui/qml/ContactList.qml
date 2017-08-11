@@ -74,10 +74,11 @@ ScrollView {
                     // nicer when using SmallCaps, and that's a display detail.
                     switch (parseInt(section)) {
                         case ContactUser.Online: return qsTr("Online").toLowerCase()
-                        case ContactUser.Offline: return qsTr("Offline").toLowerCase()
                         case ContactUser.RequestPending: return qsTr("Requests").toLowerCase()
                         case ContactUser.RequestRejected: return qsTr("Rejected").toLowerCase()
-                        case ContactUser.Outdated: return qsTr("Outdated").toLowerCase()
+                        case ContactUser.Offline:
+                        case ContactUser.Unknown:
+                            return qsTr("Offline").toLowerCase()
                     }
                 }
             }

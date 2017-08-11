@@ -54,13 +54,21 @@ public slots:
     void startMonitorNetwork();
     void stopMonitorNetwork();
 
+    void startMonitorContacts();
+    void stopMonitorContacts();
+
 signals:
     void networkStatusChanged(const ricochet::NetworkStatus &status);
+    void contactEvent(const ricochet::ContactEvent &event);
 
 private:
     std::unique_ptr<ricochet::RicochetCore::Stub> client;
+
     std::thread monitorNetworkThread;
     std::unique_ptr<grpc::ClientContext> monitorNetworkCtx;
+
+    std::thread monitorContactsThread;
+    std::unique_ptr<grpc::ClientContext> monitorContactsCtx;
 };
 
 extern BackendRPC *backend;

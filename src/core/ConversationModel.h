@@ -34,21 +34,17 @@
 #define CONVERSATIONMODEL_H
 
 #include <QAbstractListModel>
-#include <QDateTime>
 #include "core/ContactUser.h"
-#include "protocol/ChatChannel.h"
+#include "rpc/conversation.pb.h"
 
 class ConversationModel : public QAbstractListModel
 {
     Q_OBJECT
-    Q_ENUMS(MessageStatus)
 
     Q_PROPERTY(ContactUser* contact READ contact WRITE setContact NOTIFY contactChanged)
     Q_PROPERTY(int unreadCount READ unreadCount RESET resetUnreadCount NOTIFY unreadCountChanged)
 
 public:
-    typedef Protocol::ChatChannel::MessageId MessageId;
-
     enum {
         TimestampRole = Qt::UserRole,
         IsOutgoingRole,
@@ -58,12 +54,15 @@ public:
     };
 
     enum MessageStatus {
-        Received,
-        Queued,
-        Sending,
-        Delivered,
-        Error
+        Null = ricochet::Message::NULL_,
+        Error = ricochet::Message::ERROR,
+        Queued = ricochet::Message::QUEUED,
+        Sending = ricochet::Message::SENDING,
+        Delivered = ricochet::Message::DELIVERED,
+        Unread = ricochet::Message::UNREAD,
+        Read = ricochet::Message::READ
     };
+    Q_ENUM(MessageStatus)
 
     ConversationModel(QObject *parent = 0);
 
@@ -77,6 +76,8 @@ public:
     virtual int rowCount(const QModelIndex &parent = QModelIndex()) const;
     virtual QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
 
+    void handleMessageEvent(const ricochet::ConversationEvent &event);
+
 public slots:
     void sendMessage(const QString &text);
     void clear();
@@ -86,31 +87,14 @@ signals:
     void unreadCountChanged();
 
 private slots:
-    void messageReceived(const QString &text, const QDateTime &time, MessageId id);
-    void messageAcknowledged(MessageId id, bool accepted);
-    void outboundChannelClosed();
-    void sendQueuedMessages();
     void onContactStatusChanged();
 
 private:
-    struct MessageData {
-        QString text;
-        QDateTime time;
-        MessageId identifier;
-        MessageStatus status;
-        quint8 attemptCount;
-
-        MessageData(const QString &text, const QDateTime &time, MessageId id, MessageStatus status)
-            : text(text), time(time), identifier(id), status(status), attemptCount(0)
-        {
-        }
-    };
-
     ContactUser *m_contact;
-    QList<MessageData> messages;
+    QList<ricochet::Message> messages;
     int m_unreadCount;
 
-    int indexOfIdentifier(MessageId identifier, bool isOutgoing) const;
+    int indexOfIdentifier(uint64_t identifier, bool isOutgoing) const;
     void prune();
 };
 

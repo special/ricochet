@@ -109,7 +109,7 @@ Column {
                 if (textField.hasOwnProperty('linkHovered'))
                     textField.linkHovered.connect(function() { })
             }
-            
+
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.RightButton

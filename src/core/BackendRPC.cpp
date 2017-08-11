@@ -39,6 +39,25 @@
 using namespace grpc;
 using namespace ricochet;
 
+class RPCReadStream
+{
+public:
+    std::thread thread;
+    grpc::ClientContext ctx;
+
+    RPCReadStream(std::function<void(grpc::ClientContext*)> func)
+    {
+        thread = std::thread(func, &ctx);
+    }
+
+    void stop()
+    {
+        ctx.TryCancel();
+        if (thread.joinable())
+            thread.join();
+    }
+};
+
 BackendRPC *backend = 0;
 
 BackendRPC::BackendRPC(QObject *parent)
@@ -46,6 +65,11 @@ BackendRPC::BackendRPC(QObject *parent)
 {
     qRegisterMetaType<ricochet::NetworkStatus>("ricochet::NetworkStatus");
     qRegisterMetaType<ricochet::ContactEvent>("ricochet::ContactEvent");
+    qRegisterMetaType<ricochet::ConversationEvent>("ricochet::ConversationEvent");
+}
+
+BackendRPC::~BackendRPC()
+{
 }
 
 bool BackendRPC::connect()
@@ -80,19 +104,32 @@ bool BackendRPC::getIdentity(ricochet::Identity &reply)
     return true;
 }
 
-// Start steaming network status events, which will be emitted in networkStatusChanged
+bool BackendRPC::sendMessage(ricochet::Message &msg)
+{
+    ClientContext ctx;
+    ricochet::Message reply;
+    Status status = client->SendMessage(&ctx, msg, &reply);
+    if (!status.ok()) {
+        qDebug() << "RPC connection failed:" << QString::fromStdString(status.error_message());
+        return false;
+    }
+
+    msg = reply;
+    return true;
+}
+
 void BackendRPC::startMonitorNetwork()
 {
-    if (monitorNetworkThread.joinable()) {
+    if (monitorNetwork) {
         qDebug() << "Cannot start network monitoring repeatedly";
         return;
     }
 
-    monitorNetworkCtx.reset(new ClientContext);
-    monitorNetworkThread = std::thread(
-        [this]() {
+    monitorNetwork.reset(new RPCReadStream(
+        [this](grpc::ClientContext *ctx)
+        {
             MonitorNetworkRequest req;
-            std::unique_ptr<ClientReader<NetworkStatus>> reader(client->MonitorNetwork(monitorNetworkCtx.get(), req));
+            std::unique_ptr<ClientReader<NetworkStatus>> reader(client->MonitorNetwork(ctx, req));
 
             NetworkStatus netStatus;
             while (reader->Read(&netStatus)) {
@@ -103,31 +140,28 @@ void BackendRPC::startMonitorNetwork()
             if (!status.ok()) {
                 qDebug() << "RPC connection failed:" << QString::fromStdString(status.error_message());
             }
-        });
+        }
+    ));
 }
 
-// Stop streaming network status events
 void BackendRPC::stopMonitorNetwork()
 {
-    if (monitorNetworkThread.joinable()) {
-        monitorNetworkCtx->TryCancel();
-        monitorNetworkThread.join();
-    }
+    if (monitorNetwork)
+        monitorNetwork->stop();
 }
 
-// Start steaming contact events, which will be emitted in contactEvent
 void BackendRPC::startMonitorContacts()
 {
-    if (monitorContactsThread.joinable()) {
+    if (monitorContacts) {
         qDebug() << "Cannot start contacts monitoring repeatedly";
         return;
     }
 
-    monitorContactsCtx.reset(new ClientContext);
-    monitorContactsThread = std::thread(
-        [this]() {
+    monitorContacts.reset(new RPCReadStream(
+        [this](grpc::ClientContext *ctx)
+        {
             MonitorContactsRequest req;
-            std::unique_ptr<ClientReader<ContactEvent>> reader(client->MonitorContacts(monitorContactsCtx.get(), req));
+            std::unique_ptr<ClientReader<ContactEvent>> reader(client->MonitorContacts(ctx, req));
 
             ContactEvent event;
             while (reader->Read(&event)) {
@@ -138,14 +172,44 @@ void BackendRPC::startMonitorContacts()
             if (!status.ok()) {
                 qDebug() << "RPC connection failed:" << QString::fromStdString(status.error_message());
             }
-        });
+        }
+    ));
 }
 
-// Stop streaming network status events
 void BackendRPC::stopMonitorContacts()
 {
-    if (monitorContactsThread.joinable()) {
-        monitorContactsCtx->TryCancel();
-        monitorContactsThread.join();
+    if (monitorContacts)
+        monitorContacts->stop();
+}
+
+void BackendRPC::startMonitorConversations()
+{
+    if (monitorConversations) {
+        qDebug() << "Cannot start conversations monitoring repeatedly";
+        return;
     }
+
+    monitorConversations.reset(new RPCReadStream(
+        [this](grpc::ClientContext *ctx)
+        {
+            MonitorConversationsRequest req;
+            std::unique_ptr<ClientReader<ConversationEvent>> reader(client->MonitorConversations(ctx, req));
+
+            ConversationEvent event;
+            while (reader->Read(&event)) {
+                emit conversationEvent(event);
+            }
+
+            Status status = reader->Finish();
+            if (!status.ok()) {
+                qDebug() << "RPC connection failed:" << QString::fromStdString(status.error_message());
+            }
+        }
+    ));
+}
+
+void BackendRPC::stopMonitorConversations()
+{
+    if (monitorConversations)
+        monitorConversations->stop();
 }

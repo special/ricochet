@@ -38,6 +38,7 @@
 #include "ContactUser.h"
 #include "IncomingRequestManager.h"
 #include "rpc/contact.pb.h"
+#include "rpc/conversation.pb.h"
 
 class OutgoingContactRequest;
 class UserIdentity;
@@ -94,10 +95,12 @@ private slots:
 
 private:
     QList<ContactUser*> pContacts;
-    bool populated;
+    bool contactsPopulated;
+    bool conversationsPopulated;
 
     void connectSignals(ContactUser *user);
     void contactEvent(const ricochet::ContactEvent &event);
+    void conversationEvent(const ricochet::ConversationEvent &event);
 };
 
 #endif // CONTACTSMANAGER_H

@@ -31,9 +31,9 @@
  */
 
 #include "ConversationModel.h"
-#include "protocol/Connection.h"
-#include "protocol/ChatChannel.h"
+#include "core/BackendRPC.h"
 #include <QDebug>
+#include <QDateTime>
 
 ConversationModel::ConversationModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -50,196 +50,84 @@ void ConversationModel::setContact(ContactUser *contact)
     beginResetModel();
     messages.clear();
 
-    if (m_contact)
-        disconnect(m_contact, 0, this, 0);
     m_contact = contact;
-    if (m_contact) {
-        auto connectChannel = [this](Protocol::Channel *channel) {
-            if (Protocol::ChatChannel *chat = qobject_cast<Protocol::ChatChannel*>(channel)) {
-                connect(chat, &Protocol::ChatChannel::messageReceived, this, &ConversationModel::messageReceived);
-                connect(chat, &Protocol::ChatChannel::messageAcknowledged, this, &ConversationModel::messageAcknowledged);
-
-                if (chat->direction() == Protocol::Channel::Outbound) {
-                    connect(chat, &Protocol::Channel::invalidated, this, &ConversationModel::outboundChannelClosed);
-                    sendQueuedMessages();
-                }
-            }
-        };
-
-        auto connectConnection = [this,connectChannel]() {
-            if (m_contact->connection()) {
-                connect(m_contact->connection().data(), &Protocol::Connection::channelOpened, this, connectChannel);
-                foreach (auto channel, m_contact->connection()->findChannels<Protocol::ChatChannel>())
-                    connectChannel(channel);
-                sendQueuedMessages();
-            }
-        };
-
-        connect(m_contact, &ContactUser::connected, this, connectConnection);
-        connectConnection();
-        connect(m_contact, &ContactUser::statusChanged,
-                this, &ConversationModel::onContactStatusChanged);
-    }
+    connect(m_contact, &ContactUser::statusChanged,
+            this, &ConversationModel::onContactStatusChanged);
 
     endResetModel();
     emit contactChanged();
 }
 
-void ConversationModel::sendMessage(const QString &text)
+void ConversationModel::handleMessageEvent(const ricochet::ConversationEvent &event)
 {
-    if (text.isEmpty())
-        return;
+    // Can assume that the message is already basically valid, but be paranoid on this one
+    ricochet::Message msg = event.msg();
+    ricochet::Entity remoteEntity = msg.sender().isself() ? msg.recipient() : msg.sender();
+    Q_ASSERT(QString::fromStdString(remoteEntity.address()) == m_contact->contactID());
+    Q_ASSERT(remoteEntity.contactid() == m_contact->uniqueID);
 
-    MessageData message(text, QDateTime::currentDateTime(), 0, Queued);
-
-    if (m_contact->connection()) {
-        auto channel = m_contact->connection()->findChannel<Protocol::ChatChannel>(Protocol::Channel::Outbound);
-        if (!channel) {
-            channel = new Protocol::ChatChannel(Protocol::Channel::Outbound, m_contact->connection().data());
-            if (!channel->openChannel()) {
-                message.status = Error;
-                delete channel;
-                channel = 0;
-            }
-        }
-
-        if (channel && channel->isOpened()) {
-            MessageId id = 0;
-            if (channel->sendChatMessage(text, QDateTime(), id))
-                message.status = Sending;
-            else
-                message.status = Error;
-            message.identifier = id;
-            message.attemptCount++;
-        }
-    }
-
-    beginInsertRows(QModelIndex(), 0, 0);
-    messages.prepend(message);
-    endInsertRows();
-    prune();
-}
-
-void ConversationModel::sendQueuedMessages()
-{
-    if (!m_contact->connection())
-        return;
-
-    // Quickly scan to see if we have any queued messages
-    bool haveQueued = false;
-    foreach (const MessageData &data, messages) {
-        if (data.status == Queued) {
-            haveQueued = true;
-            break;
-        }
-    }
-
-    if (!haveQueued)
-        return;
-
-    auto channel = m_contact->connection()->findChannel<Protocol::ChatChannel>(Protocol::Channel::Outbound);
-    if (!channel) {
-        channel = new Protocol::ChatChannel(Protocol::Channel::Outbound, m_contact->connection().data());
-        if (!channel->openChannel()) {
-            delete channel;
+    if (event.type() == ricochet::ConversationEvent::UPDATE)
+    {
+        int i = indexOfIdentifier(msg.identifier(), msg.sender().isself());
+        if (i < 0) {
+            qDebug() << "Ignoring message update for a message that isn't in this conversation model";
             return;
         }
-    }
-
-    // sendQueuedMessages is called at channelOpened
-    if (!channel->isOpened())
+        if (messages[i].status() == ricochet::Message::UNREAD && msg.status() != ricochet::Message::UNREAD) {
+            m_unreadCount--;
+            emit unreadCountChanged();
+        }
+        messages[i] = msg;
+        emit dataChanged(index(i, 0), index(i, 0));
         return;
-
-    // Iterate backwards, from oldest to newest messages
-    for (int i = messages.size() - 1; i >= 0; i--) {
-        if (messages[i].status == Queued) {
-            qDebug() << "Sending queued chat message";
-            bool ok = false;
-            if (messages[i].identifier)
-                ok = channel->sendChatMessageWithId(messages[i].text, messages[i].time, messages[i].identifier);
-            else
-                ok = channel->sendChatMessage(messages[i].text, messages[i].time, messages[i].identifier);
-            if (ok)
-                messages[i].status = Sending;
-            else
-                messages[i].status = Error;
-            messages[i].attemptCount++;
-            emit dataChanged(index(i, 0), index(i, 0));
-        }
-    }
-}
-
-void ConversationModel::messageReceived(const QString &text, const QDateTime &time, MessageId id)
-{
-    // In rare cases an outgoing acknowledgement packet can be lost which
-    // causes the other party to resend the message. Discard the duplicate.
-    // We don't need to resend the old acknowledgement packet because
-    // it is identical to the one for the duplicate message.
-    for (int i = 0; i < messages.size() && i < 5; i++) {
-        if (messages[i].status == Delivered) {
-            break;
-        }
-        if (messages[i].identifier == id && messages[i].text == text) {
-            qDebug() << "duplicate incoming message" << id;
-            return;
-        }
     }
 
-    // To preserve conversation flow despite potentially high latency, incoming messages
-    // are positioned above the last unacknowledged messages to the peer. We assume that
-    // the peer hadn't seen any unacknowledged message when this message was sent.
+    // New messages (either send, receive, or populate)
     int row = 0;
-    for (int i = 0; i < messages.size() && i < 5; i++) {
-        if (messages[i].status != Sending && messages[i].status != Queued) {
-            row = i;
-            break;
+    if (event.type() == ricochet::ConversationEvent::RECEIVE) {
+        // To preserve conversation flow despite potentially high latency, incoming messages
+        // are positioned above the last unacknowledged messages to the peer. We assume that
+        // the peer hadn't seen any unacknowledged message when this message was sent.
+        for (int i = 0; i < messages.size() && i < 5; i++) {
+            if (messages[i].status() != ricochet::Message::QUEUED &&
+                messages[i].status() != ricochet::Message::SENDING) {
+                row = i;
+                break;
+            }
         }
     }
 
     beginInsertRows(QModelIndex(), row, row);
-    MessageData message(text, time, id, Received);
-    messages.insert(row, message);
+    messages.insert(row, msg);
     endInsertRows();
     prune();
 
-    m_unreadCount++;
-    emit unreadCountChanged();
+    if (msg.status() == ricochet::Message::UNREAD) {
+        m_unreadCount++;
+        emit unreadCountChanged();
+    }
 }
 
-void ConversationModel::messageAcknowledged(MessageId id, bool accepted)
+void ConversationModel::sendMessage(const QString &text)
 {
-    int row = indexOfIdentifier(id, true);
-    if (row < 0)
+    ricochet::Message msg;
+    msg.mutable_sender()->set_isself(true);
+    msg.mutable_recipient()->set_contactid(m_contact->uniqueID);
+    msg.mutable_recipient()->set_address(m_contact->contactID().toStdString());
+    msg.set_text(text.toStdString());
+
+    if (!backend->sendMessage(msg)) {
+        // We should probably insert this message into the conversation as an error here, but
+        // more thought is needed on how to handle these failures.
+        qDebug() << "Sending conversation message failed";
         return;
-
-    MessageData &data = messages[row];
-    data.status = accepted ? Delivered : Error;
-    emit dataChanged(index(row, 0), index(row, 0));
-}
-
-void ConversationModel::outboundChannelClosed()
-{
-    // Any messages that are Sending are moved back to Queued, so they
-    // will be re-sent when we reconnect.
-    for (int i = 0; i < messages.size(); i++) {
-        if (messages[i].status != Sending)
-            continue;
-        if (messages[i].attemptCount >= 2) {
-            qDebug() << "Outbound chat channel closed, and unacknowledged message has been tried twice already. Marking as error.";
-            messages[i].status = Error;
-        } else {
-            qDebug() << "Outbound chat channel closed, putting unacknowledged chat message back in queue";
-            messages[i].status = Queued;
-        }
-        emit dataChanged(index(i, 0), index(i, 0));
     }
 
-    // Try to reopen the channel if we're still connected
-    if (m_contact && m_contact->connection() && m_contact->connection()->isConnected()) {
-        metaObject()->invokeMethod(this, "sendQueuedMessages", Qt::QueuedConnection);
-    }
+    // msg is now updated to be the full message object, but we can just wait for the
+    // event to come in via handleMessageEvent also.
 }
 
+// XXX remote
 void ConversationModel::clear()
 {
     if (messages.isEmpty())
@@ -252,6 +140,7 @@ void ConversationModel::clear()
     resetUnreadCount();
 }
 
+// XXX remote
 void ConversationModel::resetUnreadCount()
 {
     if (m_unreadCount == 0)
@@ -290,31 +179,31 @@ QVariant ConversationModel::data(const QModelIndex &index, int role) const
     if (!index.isValid() || index.row() >= messages.size())
         return QVariant();
 
-    const MessageData &message = messages[index.row()];
+    const ricochet::Message &message = messages[index.row()];
 
     switch (role) {
-        case Qt::DisplayRole: return message.text;
-        case TimestampRole: return message.time;
-        case IsOutgoingRole: return message.status != Received;
-        case StatusRole: return message.status;
+        case Qt::DisplayRole: return QString::fromStdString(message.text());
+        case TimestampRole: return QDateTime::fromTime_t(message.timestamp());
+        case IsOutgoingRole: return message.sender().isself();
+        case StatusRole: return message.status();
 
         case SectionRole: {
-            if (m_contact->status() == ContactUser::Online)
+            if (m_contact->status() == ContactUser::Online || message.status() != ricochet::Message::QUEUED)
                 return QString();
             if (index.row() < messages.size() - 1) {
-                const MessageData &next = messages[index.row()+1];
-                if (next.status != Received && next.status != Delivered)
+                const ricochet::Message &previous = messages[index.row()+1];
+                if (previous.status() == ricochet::Message::QUEUED)
                     return QString();
             }
             for (int i = 0; i <= index.row(); i++) {
-                if (messages[i].status == Received || messages[i].status == Delivered)
+                if (messages[i].status() != ricochet::Message::QUEUED)
                     return QString();
             }
             return QStringLiteral("offline");
         }
         case TimespanRole: {
             if (index.row() < messages.size() - 1)
-                return messages[index.row() + 1].time.secsTo(messages[index.row()].time);
+                return message.timestamp() - messages[index.row() + 1].timestamp();
             else
                 return -1;
         }
@@ -323,10 +212,10 @@ QVariant ConversationModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
-int ConversationModel::indexOfIdentifier(MessageId identifier, bool isOutgoing) const
+int ConversationModel::indexOfIdentifier(uint64_t identifier, bool isOutgoing) const
 {
     for (int i = 0; i < messages.size(); i++) {
-        if (messages[i].identifier == identifier && (messages[i].status != Received) == isOutgoing)
+        if (messages[i].identifier() == identifier && messages[i].sender().isself() == isOutgoing)
             return i;
     }
     return -1;

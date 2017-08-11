@@ -34,10 +34,10 @@
 #define BACKENDRPC_H
 
 #include <QObject>
-#include <thread>
-#include <grpc++/grpc++.h>
 #include "rpc/core.pb.h"
 #include "rpc/core.grpc.pb.h"
+
+class RPCReadStream;
 
 class BackendRPC : public QObject
 {
@@ -46,8 +46,13 @@ class BackendRPC : public QObject
 
 public:
     BackendRPC(QObject *parent = 0);
+    virtual ~BackendRPC();
 
     bool getIdentity(ricochet::Identity &reply);
+
+    // Blocking call to SendMessage to send a chat message. On success,
+    // returns true and updates msg with the full server-side data.
+    bool sendMessage(ricochet::Message &msg);
 
 public slots:
     bool connect();
@@ -57,18 +62,20 @@ public slots:
     void startMonitorContacts();
     void stopMonitorContacts();
 
+    void startMonitorConversations();
+    void stopMonitorConversations();
+
 signals:
     void networkStatusChanged(const ricochet::NetworkStatus &status);
     void contactEvent(const ricochet::ContactEvent &event);
+    void conversationEvent(const ricochet::ConversationEvent &event);
 
 private:
     std::unique_ptr<ricochet::RicochetCore::Stub> client;
 
-    std::thread monitorNetworkThread;
-    std::unique_ptr<grpc::ClientContext> monitorNetworkCtx;
-
-    std::thread monitorContactsThread;
-    std::unique_ptr<grpc::ClientContext> monitorContactsCtx;
+    std::unique_ptr<RPCReadStream> monitorNetwork;
+    std::unique_ptr<RPCReadStream> monitorContacts;
+    std::unique_ptr<RPCReadStream> monitorConversations;
 };
 
 extern BackendRPC *backend;

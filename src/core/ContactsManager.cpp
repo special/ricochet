@@ -46,23 +46,26 @@
 ContactsManager *contactsManager = 0;
 
 ContactsManager::ContactsManager(UserIdentity *id)
-    : identity(id), incomingRequests(this), populated(false)
+    : identity(id), incomingRequests(this), contactsPopulated(false), conversationsPopulated(false)
 {
     contactsManager = this;
     connect(backend, &BackendRPC::contactEvent, this, &ContactsManager::contactEvent);
+    connect(backend, &BackendRPC::conversationEvent, this, &ContactsManager::conversationEvent);
 }
 
 void ContactsManager::loadFromBackend()
 {
-    Q_ASSERT(!populated);
+    Q_ASSERT(!contactsPopulated && !conversationsPopulated);
     // Begin MonitorContacts. The full contacts list will be sent in POPULATE events first,
     // followed by a null POPULATE event, followed by a stream of any changes.
     backend->startMonitorContacts();
+
+    // Conversations will be started once contacts have finished populating
 }
 
 void ContactsManager::contactEvent(const ricochet::ContactEvent &event)
 {
-    if (!populated) {
+    if (!contactsPopulated) {
         if (event.type() != ricochet::ContactEvent::POPULATE) {
             qDebug() << "Ignoring unexpected contact event type" << event.type() << "during populate";
             return;
@@ -79,7 +82,8 @@ void ContactsManager::contactEvent(const ricochet::ContactEvent &event)
         } else {
             // End of populate
             qDebug() << "Contacts populated";
-            populated = true;
+            contactsPopulated = true;
+            backend->startMonitorConversations();
         }
 
         return;
@@ -130,6 +134,41 @@ void ContactsManager::contactEvent(const ricochet::ContactEvent &event)
     } else {
         qDebug() << "Ignoring contact event without a subject";
     }
+}
+
+void ContactsManager::conversationEvent(const ricochet::ConversationEvent &event)
+{
+    if (!conversationsPopulated) {
+        if (event.type() != ricochet::ConversationEvent::POPULATE) {
+            qDebug() << "Ignoring unexpected conversation event type" << event.type() << "during population";
+            return;
+        }
+        if (!event.has_msg()) {
+            qDebug() << "Finished populating conversations";
+            conversationsPopulated = true;
+            return;
+        }
+    } else if (event.type() == ricochet::ConversationEvent::POPULATE) {
+        qDebug() << "Ignoring conversation populate event after population finished";
+        return;
+    }
+
+    ricochet::Message msg = event.msg();
+    if (!event.has_msg() || !msg.has_recipient() || !msg.has_sender() ||
+        (msg.sender().isself() && msg.recipient().isself()))
+    {
+        qDebug() << "Ignoring invalid conversation event";
+        return;
+    }
+
+    ricochet::Entity remoteEntity = msg.sender().isself() ? msg.recipient() : msg.sender();
+    ContactUser *user = lookupHostname(ContactIDValidator::hostnameFromID(QString::fromStdString(remoteEntity.address())));
+    if (!user || user->uniqueID != remoteEntity.contactid()) {
+        qDebug() << "Ignoring conversation event with unknown remote entity";
+        return;
+    }
+
+    user->conversation()->handleMessageEvent(event);
 }
 
 ContactUser *ContactsManager::addContact(const QString &nickname)

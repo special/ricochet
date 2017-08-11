@@ -77,14 +77,13 @@ QtObject {
     }
 
     property list<QtObject> data: [
-        // XXX
-        /*Connections {
-            target: userIdentity.contacts.incomingRequests
-            onRequestAdded: {
+        Connections {
+            target: userIdentity.contacts
+            onIncomingRequest: {
                 var object = createDialog("ContactRequestDialog.qml", { 'request': request })
                 object.visible = true
             }
-        },*/
+        },
 
         Connections {
             target: torInstance
@@ -127,7 +126,7 @@ QtObject {
             running: true
             repeat: false
             onTriggered: {
-                var pendingRequests = userIdentity.contacts.incomingRequests.requests
+                var pendingRequests = userIdentity.contacts.incomingRequests
                 for (var i = 0; i < pendingRequests.length; i++) {
                     var object = createDialog("ContactRequestDialog.qml", { 'request': pendingRequests[i] })
                     object.visible = true

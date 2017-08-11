@@ -17,21 +17,20 @@ ApplicationWindow {
     signal closed
     onVisibleChanged: if (!visible) closed()
 
-    property QtObject request
-    property bool hasValidContact: request.hostname != "" && fields.name.text.length
+    property var request
+    property bool hasValidContact: request.address != "" && fields.name.text.length
 
     function close() {
         visible = false
     }
 
     function accept() {
-        request.nickname = fields.name.text
-        request.accept()
+        userIdentity.contacts.acceptIncomingRequest(request.address, fields.name.text)
         close()
     }
 
     function reject() {
-        request.reject()
+        userIdentity.contacts.rejectIncomingRequest(request.address)
         close()
     }
 
@@ -81,11 +80,11 @@ ApplicationWindow {
         readOnly: true
 
         Component.onCompleted: {
-            contactId.text = request.contactId
+            contactId.text = request.address
             name.text = request.nickname
             name.readOnly = false
             name.focus = true
-            message.text = request.message
+            message.text = request.text
         }
     }
 

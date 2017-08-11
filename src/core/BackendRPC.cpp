@@ -129,6 +129,29 @@ bool BackendRPC::addContactRequest(const ricochet::ContactRequest &request, rico
     return true;
 }
 
+bool BackendRPC::acceptInboundRequest(const ricochet::ContactRequest &request, ricochet::Contact &newContact)
+{
+    ClientContext ctx;
+    Status status = client->AcceptInboundRequest(&ctx, request, &newContact);
+    if (!status.ok()) {
+        qDebug() << "RPC connection failed:" << QString::fromStdString(status.error_message());
+        return false;
+    }
+    return true;
+}
+
+bool BackendRPC::rejectInboundRequest(const ricochet::ContactRequest &request)
+{
+    ClientContext ctx;
+    ricochet::RejectInboundRequestReply reply;
+    Status status = client->RejectInboundRequest(&ctx, request, &reply);
+    if (!status.ok()) {
+        qDebug() << "RPC connection failed:" << QString::fromStdString(status.error_message());
+        return false;
+    }
+    return true;
+}
+
 void BackendRPC::startMonitorNetwork()
 {
     if (monitorNetwork) {

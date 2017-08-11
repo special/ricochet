@@ -46,6 +46,7 @@ class ContactsManager : public QObject
     Q_OBJECT
     Q_DISABLE_COPY(ContactsManager)
 
+    Q_PROPERTY(QList<QVariantMap> incomingRequests READ incomingRequestsQt NOTIFY incomingRequestsChanged)
     Q_PROPERTY(int globalUnreadCount READ globalUnreadCount NOTIFY unreadCountChanged)
 
 public:
@@ -72,12 +73,21 @@ public:
 
     int globalUnreadCount() const;
 
+    const QList<ricochet::ContactRequest> &incomingRequests() const { return m_incomingRequests; }
+    QList<QVariantMap> incomingRequestsQt() const;
+
+    Q_INVOKABLE void acceptIncomingRequest(const QString &address, const QString &nickname);
+    Q_INVOKABLE void rejectIncomingRequest(const QString &address);
+
 signals:
     void contactAdded(ContactUser *user);
-
     void unreadCountChanged(ContactUser *user, int unreadCount);
-
     void contactStatusChanged(ContactUser* user, int status);
+
+    void incomingRequest(const QVariantMap &request);
+    void incomingRequestUpdated(const QVariantMap &request);
+    void incomingRequestDeleted(const QVariantMap &request);
+    void incomingRequestsChanged();
 
 private slots:
     void contactDeleted(ContactUser *user);
@@ -85,12 +95,15 @@ private slots:
 
 private:
     QList<ContactUser*> pContacts;
+    QList<ricochet::ContactRequest> m_incomingRequests;
     bool contactsPopulated;
     bool conversationsPopulated;
 
     void connectSignals(ContactUser *user);
     void contactEvent(const ricochet::ContactEvent &event);
     void conversationEvent(const ricochet::ConversationEvent &event);
+
+    QVariantMap requestData(const ricochet::ContactRequest &request) const;
 };
 
 #endif // CONTACTSMANAGER_H

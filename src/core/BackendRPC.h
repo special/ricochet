@@ -55,6 +55,8 @@ public:
     bool sendMessage(ricochet::Message &msg);
 
     bool addContactRequest(const ricochet::ContactRequest &request, ricochet::Contact &newContact);
+    bool acceptInboundRequest(const ricochet::ContactRequest &request, ricochet::Contact &newContact);
+    bool rejectInboundRequest(const ricochet::ContactRequest &request);
 
 public slots:
     bool connect();

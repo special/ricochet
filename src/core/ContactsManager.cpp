@@ -76,8 +76,9 @@ void ContactsManager::contactEvent(const ricochet::ContactEvent &event)
             pContacts.append(user);
             emit contactAdded(user);
         } else if (event.has_request()) {
-            // XXX incomingRequests.loadRequests
-            qDebug() << "XXX Ignoring incoming request in contacts for now";
+            m_incomingRequests.append(event.request());
+            emit incomingRequest(requestData(event.request()));
+            emit incomingRequestsChanged();
         } else {
             // End of populate
             qDebug() << "Contacts populated";
@@ -95,7 +96,8 @@ void ContactsManager::contactEvent(const ricochet::ContactEvent &event)
             return;
         }
 
-        switch (event.type()) {
+        switch (event.type())
+        {
             case ricochet::ContactEvent::ADD:
                 if (user) {
                     // This can happen under normal circumstances, because addContact will create the contact also.
@@ -130,8 +132,48 @@ void ContactsManager::contactEvent(const ricochet::ContactEvent &event)
                 return;
         }
     } else if (event.has_request()) {
-        // XXX
-        qDebug() << "Ignoring contact request event for now";
+        int idx = -1;
+        for (int i = 0; i < m_incomingRequests.size(); i++) {
+            if (m_incomingRequests[i].address() == event.request().address()) {
+                idx = i;
+                break;
+            }
+        }
+
+        switch (event.type())
+        {
+            case ricochet::ContactEvent::ADD:
+                if (idx >= 0) {
+                    qDebug() << "Ignoring request add event for existing request";
+                    return;
+                }
+                m_incomingRequests.append(event.request());
+                emit incomingRequest(requestData(event.request()));
+                break;
+
+            case ricochet::ContactEvent::UPDATE:
+                if (idx < 0) {
+                    qDebug() << "Ignoring request update event for unknown request";
+                    return;
+                }
+                m_incomingRequests[idx] = event.request();
+                emit incomingRequestUpdated(requestData(event.request()));
+                break;
+
+            case ricochet::ContactEvent::DELETE:
+                if (idx < 0) {
+                    qDebug() << "Ignoring request delete event for unknown request";
+                    return;
+                }
+                m_incomingRequests.removeAt(idx);
+                emit incomingRequestDeleted(requestData(event.request()));
+                break;
+
+            default:
+                qDebug() << "Ignring unknown request event type" << event.type();
+                return;
+        }
+        emit incomingRequestsChanged();
     } else {
         qDebug() << "Ignoring contact event without a subject";
     }
@@ -288,3 +330,53 @@ int ContactsManager::globalUnreadCount() const
     return re;
 }
 
+QVariantMap ContactsManager::requestData(const ricochet::ContactRequest &request) const
+{
+    QVariantMap data;
+    data[QStringLiteral("address")] = QString::fromStdString(request.address());
+    data[QStringLiteral("nickname")] = QString::fromStdString(request.nickname());
+    data[QStringLiteral("text")] = QString::fromStdString(request.text());
+    data[QStringLiteral("fromNickname")] = QString::fromStdString(request.fromnickname());
+    data[QStringLiteral("whenCreated")] = QDateTime::fromString(QString::fromStdString(request.whencreated()), Qt::ISODate);
+    data[QStringLiteral("rejected")] = request.rejected();
+    return data;
+}
+
+QList<QVariantMap> ContactsManager::incomingRequestsQt() const
+{
+    QList<QVariantMap> re;
+    re.reserve(m_incomingRequests.size());
+    for (const auto &request : m_incomingRequests) {
+        re.append(requestData(request));
+    }
+    return re;
+}
+
+void ContactsManager::acceptIncomingRequest(const QString &address, const QString &nickname)
+{
+    ricochet::ContactRequest request;
+    request.set_direction(ricochet::ContactRequest::INBOUND);
+    request.set_address(address.toStdString());
+    request.set_fromnickname(nickname.toStdString());
+
+    ricochet::Contact contactData;
+    if (!backend->acceptInboundRequest(request, contactData)) {
+        qDebug() << "Accepting inbound contact request for" << address << "failed";
+        return;
+    }
+
+    // It would be possible to do the same as createContactRequest here to return a real
+    // contact immediately, but there's no need currently.
+}
+
+void ContactsManager::rejectIncomingRequest(const QString &address)
+{
+    ricochet::ContactRequest request;
+    request.set_direction(ricochet::ContactRequest::INBOUND);
+    request.set_address(address.toStdString());
+
+    if (!backend->rejectInboundRequest(request)) {
+        qDebug() << "Rejecting inbound contact request for" << address << "failed";
+        return;
+    }
+}

@@ -55,7 +55,7 @@ class ContactUser : public QObject
     Q_OBJECT
     Q_DISABLE_COPY(ContactUser)
 
-    Q_PROPERTY(int uniqueID READ getUniqueID CONSTANT)
+    Q_PROPERTY(QString address READ address CONSTANT)
     Q_PROPERTY(UserIdentity* identity READ getIdentity CONSTANT)
     Q_PROPERTY(QString nickname READ nickname WRITE setNickname NOTIFY nicknameChanged)
     Q_PROPERTY(QString contactID READ contactID CONSTANT)
@@ -76,7 +76,6 @@ public:
     Q_ENUM(Status)
 
     UserIdentity * const identity;
-    const int uniqueID;
 
     explicit ContactUser(UserIdentity *identity, const ricochet::Contact &data, QObject *parent = 0);
     virtual ~ContactUser();
@@ -86,14 +85,11 @@ public:
     ConversationModel *conversation() { return m_conversation; }
 
     UserIdentity *getIdentity() const { return identity; }
-    int getUniqueID() const { return uniqueID; }
 
+    QString address() const;
     QString nickname() const;
-    /* Hostname is in the onion hostname format, i.e. it ends with .onion */
-    QString hostname() const;
-    quint16 port() const;
     /* Contact ID in the ricochet: format */
-    QString contactID() const;
+    QString contactID() const { return address(); }
 
     Status status() const;
 
@@ -101,7 +97,6 @@ public:
 
 public slots:
     void setNickname(const QString &nickname);
-    void setHostname(const QString &hostname);
 
 signals:
     void statusChanged();

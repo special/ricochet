@@ -66,7 +66,7 @@ ContactUser *ContactIDValidator::matchingContact(const QString &text) const
 {
     ContactUser *u = 0;
     if (m_uniqueIdentity)
-        u = m_uniqueIdentity->contacts.lookupHostname(text);
+        u = m_uniqueIdentity->contacts.lookupAddress(text);
     return u;
 }
 

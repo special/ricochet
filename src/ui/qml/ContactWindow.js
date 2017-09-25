@@ -4,8 +4,8 @@ var windows = { }
 var createWindow = function() { console.log("BUG!") }
 
 function getWindow(user) {
-    var id = user.uniqueID
-    var window = windows[user.uniqueID]
+    var id = user.address
+    var window = windows[user.address]
 
     if (window === undefined || window === null) {
         window = createWindow(user)
@@ -16,5 +16,5 @@ function getWindow(user) {
 }
 
 function windowExists(user) {
-    return windows[user.uniqueID] !== undefined && windows[user.uniqueID] !== null
+    return windows[user.address] !== undefined && windows[user.address] !== null
 }

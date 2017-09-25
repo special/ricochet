@@ -63,8 +63,7 @@ void ConversationModel::handleMessageEvent(const ricochet::ConversationEvent &ev
     // Can assume that the message is already basically valid, but be paranoid on this one
     ricochet::Message msg = event.msg();
     ricochet::Entity remoteEntity = msg.sender().isself() ? msg.recipient() : msg.sender();
-    Q_ASSERT(QString::fromStdString(remoteEntity.address()) == m_contact->contactID());
-    Q_ASSERT(remoteEntity.contactid() == m_contact->uniqueID);
+    Q_ASSERT(QString::fromStdString(remoteEntity.address()) == m_contact->address());
 
     if (event.type() == ricochet::ConversationEvent::UPDATE)
     {
@@ -112,8 +111,7 @@ void ConversationModel::sendMessage(const QString &text)
 {
     ricochet::Message msg;
     msg.mutable_sender()->set_isself(true);
-    msg.mutable_recipient()->set_contactid(m_contact->uniqueID);
-    msg.mutable_recipient()->set_address(m_contact->contactID().toStdString());
+    msg.mutable_recipient()->set_address(m_contact->address().toStdString());
     msg.set_text(text.toStdString());
 
     if (!backend->sendMessage(msg)) {

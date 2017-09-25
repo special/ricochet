@@ -55,9 +55,8 @@ public:
     explicit ContactsManager(UserIdentity *identity);
 
     const QList<ContactUser*> &contacts() const { return pContacts; }
-    ContactUser *lookupHostname(const QString &hostname) const;
+    ContactUser *lookupAddress(const QString &address) const;
     ContactUser *lookupNickname(const QString &nickname) const;
-    ContactUser *lookupUniqueID(int uniqueID) const;
 
     /* Create a new user and a contact request for that user. Use this instead of addContact.
      * Note that contactID should be an ricochet: ID. */
@@ -66,8 +65,6 @@ public:
 
     /* addContact will add the contact, but does not create a request. Use createContactRequest */
     ContactUser *addContact(const QString &nickname);
-
-    static QString hostnameFromID(const QString &ID);
 
     void loadFromBackend();
 

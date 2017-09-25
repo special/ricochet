@@ -45,13 +45,10 @@
 ContactUser::ContactUser(UserIdentity *ident, const ricochet::Contact &data, QObject *parent)
     : QObject(parent)
     , identity(ident)
-    , uniqueID(data.id())
     , m_data(data)
     , m_lastReceivedChatID(0)
     , m_conversation(0)
 {
-    Q_ASSERT(uniqueID >= 0);
-
     m_conversation = new ConversationModel(this);
     m_conversation->setContact(this);
 }
@@ -62,7 +59,6 @@ ContactUser::~ContactUser()
 
 void ContactUser::updated(const ricochet::Contact &data)
 {
-    Q_ASSERT(data.id() == m_data.id());
     Q_ASSERT(data.address() == m_data.address());
 
     ricochet::Contact oldData = m_data;
@@ -89,18 +85,7 @@ void ContactUser::setNickname(const QString &nickname)
     // XXX
 }
 
-QString ContactUser::hostname() const
-{
-    return ContactIDValidator::hostnameFromID(contactID());
-}
-
-// XXX
-quint16 ContactUser::port() const
-{
-    return 9878;
-}
-
-QString ContactUser::contactID() const
+QString ContactUser::address() const
 {
     return QString::fromStdString(m_data.address());
 }
@@ -110,12 +95,6 @@ ContactUser::Status ContactUser::status() const
     return static_cast<Status>(m_data.status());
 }
 
-void ContactUser::setHostname(const QString &hostname)
-{
-    // XXX
-    // Also, what
-}
-
 void ContactUser::deleteContact()
 {
     /* Anything that uses ContactUser is required to either respond to the contactDeleted signal
@@ -123,8 +102,6 @@ void ContactUser::deleteContact()
 
     // XXX
 #if 0
-    qDebug() << "Deleting contact" << uniqueID;
-
     emit contactDeleted(this);
 
     m_settings->undefine();

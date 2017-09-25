@@ -90,12 +90,7 @@ void ContactsManager::contactEvent(const ricochet::ContactEvent &event)
     }
 
     if (event.has_contact()) {
-        ContactUser *user = lookupHostname(ContactIDValidator::hostnameFromID(QString::fromStdString(event.contact().address())));
-        if (user && user->uniqueID != event.contact().id()) {
-            qDebug() << "Ignoring contact event with an address/id mismatch";
-            return;
-        }
-
+        ContactUser *user = lookupAddress(QString::fromStdString(event.contact().address()));
         switch (event.type())
         {
             case ricochet::ContactEvent::ADD:
@@ -205,8 +200,8 @@ void ContactsManager::conversationEvent(const ricochet::ConversationEvent &event
     }
 
     ricochet::Entity remoteEntity = msg.sender().isself() ? msg.recipient() : msg.sender();
-    ContactUser *user = lookupHostname(ContactIDValidator::hostnameFromID(QString::fromStdString(remoteEntity.address())));
-    if (!user || user->uniqueID != remoteEntity.contactid()) {
+    ContactUser *user = lookupAddress(QString::fromStdString(remoteEntity.address()));
+    if (!user) {
         qDebug() << "Ignoring conversation event with unknown remote entity";
         return;
     }
@@ -245,8 +240,7 @@ ContactUser *ContactsManager::createContactRequest(const QString &contactid, con
     }
 
     // Check for a matching contact, in case the add event was somehow handled already
-    ContactUser *user = lookupHostname(ContactIDValidator::hostnameFromID(QString::fromStdString(contactData.address())));
-    Q_ASSERT(!user || user->uniqueID == contactData.id());
+    ContactUser *user = lookupAddress(QString::fromStdString(contactData.address()));
 
     // Create the contact now. We'll also receive it as an ADD event, but that can be safely ignored.
     if (!user) {
@@ -264,22 +258,13 @@ void ContactsManager::contactDeleted(ContactUser *user)
     pContacts.removeOne(user);
 }
 
-ContactUser *ContactsManager::lookupHostname(const QString &hostname) const
+ContactUser *ContactsManager::lookupAddress(const QString &address) const
 {
-    QString ohost = ContactIDValidator::hostnameFromID(hostname);
-    if (ohost.isNull())
-        ohost = hostname;
-
-    if (!ohost.endsWith(QLatin1String(".onion")))
-        ohost.append(QLatin1String(".onion"));
-
-    for (QList<ContactUser*>::ConstIterator it = pContacts.begin(); it != pContacts.end(); ++it)
-    {
-        if (ohost.compare((*it)->hostname(), Qt::CaseInsensitive) == 0)
-            return *it;
+    for (ContactUser *user : pContacts) {
+        if (user->address() == address)
+            return user;
     }
-
-    return 0;
+    return nullptr;
 }
 
 ContactUser *ContactsManager::lookupNickname(const QString &nickname) const
@@ -287,17 +272,6 @@ ContactUser *ContactsManager::lookupNickname(const QString &nickname) const
     for (QList<ContactUser*>::ConstIterator it = pContacts.begin(); it != pContacts.end(); ++it)
     {
         if (QString::compare(nickname, (*it)->nickname(), Qt::CaseInsensitive) == 0)
-            return *it;
-    }
-
-    return 0;
-}
-
-ContactUser *ContactsManager::lookupUniqueID(int uniqueID) const
-{
-    for (QList<ContactUser*>::ConstIterator it = pContacts.begin(); it != pContacts.end(); ++it)
-    {
-        if ((*it)->uniqueID == uniqueID)
             return *it;
     }
 
